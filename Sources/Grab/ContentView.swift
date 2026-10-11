@@ -5,7 +5,7 @@ struct ContentView: View {
     @Environment(DownloadManager.self) private var manager
     @Environment(\.openURL) private var openURL
     @Environment(\.appearsActive) private var appearsActive
-    @Environment(\.openGrabSettings) private var openSettings
+    @Environment(\.openSettings) private var openSettings
     @Environment(HelperToolsUpdater.self) private var toolsUpdater
     @Environment(Updater.self) private var updater
     @AppStorage(Prefs.downloadPath) private var downloadPath = ""

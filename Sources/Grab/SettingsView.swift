@@ -1,113 +1,21 @@
 import SwiftUI
 
-enum SettingsTab: String, CaseIterable, Identifiable {
+enum SettingsTab: String {
     case general, format, downloads, advanced
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .general: String(localized: "General")
-        case .format: String(localized: "Format")
-        case .downloads: String(localized: "Downloads")
-        case .advanced: String(localized: "Advanced")
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .general: "gearshape"
-        case .format: "slider.horizontal.3"
-        case .downloads: "arrow.down.circle"
-        case .advanced: "terminal"
-        }
-    }
 }
 
-/// Settings lives in a regular window with the main window's unified toolbar (no title), so the
-/// window buttons sit in the same place; the tabs (icon above, name below) are its centre item.
+/// The Settings scene: the system supplies the toolbar tabs, "Settings…" and ⌘, — each pane is a grouped form.
 struct SettingsView: View {
     @AppStorage("settingsTab") private var tab: SettingsTab = .general
 
     var body: some View {
-        Group {
-            switch tab {
-            case .general: GeneralSettings()
-            case .format: FormatSettingsView()
-            case .downloads: DownloadSettings()
-            case .advanced: AdvancedSettings()
-            }
+        TabView(selection: $tab) {
+            Tab("General", systemImage: "gearshape", value: SettingsTab.general) { GeneralSettings() }
+            Tab("Format", systemImage: "slider.horizontal.3", value: SettingsTab.format) { FormatSettingsView() }
+            Tab("Downloads", systemImage: "arrow.down.circle", value: SettingsTab.downloads) { DownloadSettings() }
+            Tab("Advanced", systemImage: "terminal", value: SettingsTab.advanced) { AdvancedSettings() }
         }
-        // Wide enough for all four tabs in the toolbar (narrower windows push the last ones into an overflow menu).
-        .frame(width: 600, height: 440)
-        .scenePadding()
-        .navigationTitle("Settings")
-        .toolbar {
-            // One toolbar item per tab, so each is its own control for VoiceOver.
-            ToolbarItemGroup(placement: .principal) {
-                ForEach(SettingsTab.allCases) { item in
-                    SettingsTabButton(tab: item, selection: $tab)
-                }
-            }
-        }
-    }
-}
-
-/// Opens the Settings window and brings Grab forward.
-struct OpenSettingsAction {
-    let openWindow: OpenWindowAction
-
-    @MainActor
-    func callAsFunction() {
-        openWindow(id: "settings")
-        MacPlatform.activate()
-    }
-}
-
-extension EnvironmentValues {
-    var openGrabSettings: OpenSettingsAction { OpenSettingsAction(openWindow: openWindow) }
-}
-
-private struct SettingsTabButton: View {
-    let tab: SettingsTab
-    /// Read here rather than passed in as a Bool: toolbar items don't always redraw when the
-    /// toolbar's own inputs change, which left the highlight stuck on an old tab.
-    @Binding var selection: SettingsTab
-    @State private var hovering = false
-
-    private var isSelected: Bool { selection == tab }
-    private func action() { selection = tab }
-
-    var body: some View {
-        Button(action: action) {
-            // Kept compact so the glass capsule around the tabs has room to breathe
-            // without making the toolbar taller (which would move the window buttons).
-            VStack(spacing: 1) {
-                Image(systemName: tab.symbol)
-                    .font(.system(size: 14, weight: .regular))
-                    .frame(height: 16)
-                Text(tab.title)
-                    .font(.system(size: 10))
-            }
-            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-            .frame(minWidth: 54)
-            .padding(.vertical, 3)
-            .padding(.horizontal, 10)
-            .background {
-                Capsule(style: .continuous)
-                    .fill(.primary.opacity(isSelected ? 0.10 : hovering ? 0.05 : 0))
-            }
-            .padding(.horizontal, 2)
-            .contentShape(.capsule)
-        }
-        .buttonStyle(.plain)
-        .focusEffectDisabled()
-        .onHover { hovering = $0 }
-        .help(tab.title)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(tab.title)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityAction { action() }
+        .frame(width: 540)
     }
 }
 
@@ -115,39 +23,50 @@ private struct GeneralSettings: View {
     @AppStorage(Prefs.downloadPath) private var downloadPath = ""
     @AppStorage(Prefs.maxConcurrent) private var maxConcurrent = 3
     @AppStorage(Prefs.askLocation) private var askLocation = false
+    @State private var choosingFolder = false
+
+    private enum Location: Hashable { case folder, ask, other }
+
+    /// Derived from the two prefs, so cancelling "Other…" leaves the previous choice selected.
+    private var location: Binding<Location> {
+        Binding(
+            get: { askLocation ? .ask : .folder },
+            set: { choice in
+                switch choice {
+                case .folder: askLocation = false
+                case .ask: askLocation = true
+                case .other: choosingFolder = true
+                }
+            }
+        )
+    }
 
     var body: some View {
         Form {
-            LabeledContent("Save to") {
-                HStack {
-                    Label {
-                        Text((downloadPath as NSString).abbreviatingWithTildeInPath)
-                            .truncationMode(.middle)
-                    } icon: {
-                        FileIcon(path: downloadPath, size: 16)
-                    }
-                    .lineLimit(1)
-                    Button("Choose…", action: chooseFolder)
+            Picker("File download location", selection: location) {
+                Label {
+                    Text((downloadPath as NSString).abbreviatingWithTildeInPath)
+                } icon: {
+                    MacPlatform.icon(for: downloadPath)
                 }
+                .tag(Location.folder)
+                Divider()
+                Text("Ask for each download").tag(Location.ask)
+                Divider()
+                Text("Other…").tag(Location.other)
             }
-            Toggle("Always ask where to save", isOn: $askLocation)
             Picker("Simultaneous downloads", selection: $maxConcurrent) {
                 ForEach(1...6, id: \.self) { Text("\($0)").tag($0) }
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.directoryURL = URL(fileURLWithPath: downloadPath)
-        panel.prompt = String(localized: "Choose")
-        if panel.runModal() == .OK, let url = panel.url {
-            downloadPath = url.path
+        .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
+            if case .success(let url) = result {
+                downloadPath = url.path
+                askLocation = false
+            }
         }
+        .fileDialogDefaultDirectory(URL(fileURLWithPath: downloadPath, isDirectory: true))
     }
 }
 
@@ -160,7 +79,6 @@ private struct FormatSettingsView: View {
                 Text("Video").tag(MediaKind.video)
                 Text("Audio only").tag(MediaKind.audio)
             }
-            .pickerStyle(.segmented)
 
             Section("Video") {
                 Picker("Max resolution", selection: format.$resolution) {
@@ -188,7 +106,7 @@ private struct FormatSettingsView: View {
             } header: {
                 Text("Audio")
             } footer: {
-                Text("Also used for Spotify links. Grab picks the best audio on offer and only converts when needed. FLAC and WAV can’t add quality the source doesn’t have; each download shows what it got.")
+                Text("Also used for Spotify links; Grab picks the best audio on offer and only converts when needed.")
                     .foregroundStyle(.secondary)
             }
         }
@@ -208,7 +126,7 @@ private struct DownloadSettings: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Title, artist & description", isOn: $embedMetadata)
+                Toggle("Title, artist and description", isOn: $embedMetadata)
                 Toggle("Thumbnail as cover art", isOn: $embedThumbnail)
                 Toggle("Subtitles (video only)", isOn: $embedSubtitles)
             } header: {
@@ -258,6 +176,7 @@ private struct AdvancedSettings: View {
     @AppStorage(Prefs.ytdlpPath) private var ytdlpPath = ""
     @AppStorage(Prefs.autoUpdate) private var autoUpdate = true
     @AppStorage(Prefs.nightly) private var nightly = false
+    @State private var choosingYtdlp = false
 
     var body: some View {
         Form {
@@ -335,20 +254,38 @@ private struct AdvancedSettings: View {
                 Text("Tools")
             } footer: {
                 Text(autoUpdate
-                     ? "Grab keeps its own copies of the official yt-dlp release and a signed static ffmpeg build, plus the Deno runtime YouTube needs, checks for updates daily, and verifies every download against its published checksum."
+                     ? "Grab keeps its own verified copies of yt-dlp, ffmpeg and the Deno runtime YouTube needs, and checks for updates daily."
                      : "Using the yt-dlp and ffmpeg installed on this Mac. Keep them current with “brew upgrade yt-dlp ffmpeg”.")
                     .foregroundStyle(.secondary)
             }
 
             Section {
-                TextField("Custom yt-dlp path", text: $ytdlpPath, prompt: Text("None"))
-                    .onSubmit { manager.refreshVersion() }
-                    .onChange(of: ytdlpPath) { manager.refreshTools() }
+                LabeledContent("yt-dlp") {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        HStack {
+                            Text(ytdlpPath.isEmpty ? String(localized: "Built-in (auto-updated)") : (ytdlpPath as NSString).abbreviatingWithTildeInPath)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Button("Choose…") { choosingYtdlp = true }
+                            if !ytdlpPath.isEmpty {
+                                Button("Use Built-in") { ytdlpPath = "" }
+                            }
+                        }
+                        if !ytdlpPath.isEmpty, !FileManager.default.isExecutableFile(atPath: ytdlpPath) {
+                            Text("This file isn’t executable.").font(.caption).foregroundStyle(.red)
+                        }
+                    }
+                }
+                .onChange(of: ytdlpPath) { manager.refreshTools() }
             } footer: {
-                Text("Overrides both of the above when set.").foregroundStyle(.secondary)
+                Text("Overrides the built-in yt-dlp when set.").foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+        .fileImporter(isPresented: $choosingYtdlp, allowedContentTypes: [.unixExecutable, .item]) { result in
+            if case .success(let url) = result { ytdlpPath = url.path }
+        }
         .onAppear { manager.refreshVersion() }
     }
 
