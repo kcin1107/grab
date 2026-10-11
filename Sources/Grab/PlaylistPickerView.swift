@@ -4,40 +4,55 @@ import SwiftUI
 struct PlaylistPickerView: View {
     @Environment(DownloadManager.self) private var manager
     @Bindable var pick: PlaylistPick
+    /// Rows highlighted in the table (for the Space key); what gets downloaded is `pick.selected`.
+    @State private var highlighted: Set<PlaylistEntry.ID> = []
+
+    /// An entry with its position in the playlist, for the "#" column.
+    private struct Row: Identifiable {
+        let number: Int
+        let entry: PlaylistEntry
+        var id: PlaylistEntry.ID { entry.id }
+    }
+
+    private var rows: [Row] {
+        pick.entries.enumerated().map { Row(number: $0.offset + 1, entry: $0.element) }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             Divider()
             content
             Divider()
             footer
                 .padding(16)
         }
-        // Fits inside the main window at its default size.
-        .frame(width: 540, height: 440)
+        .frame(minWidth: 540, idealWidth: 640, minHeight: 420, idealHeight: 520)
+        .presentationSizing(.fitted)
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: pick.entries.first?.spotify != nil ? "music.note.list" : "list.and.film")
-                .font(.title2)
-                .foregroundStyle(.tint)
-                .frame(width: 44, height: 44)
-                .background(.tint.opacity(0.12), in: .rect(cornerRadius: Design.Radius.box, style: .continuous))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(pick.phase == .loading ? String(localized: "Reading playlist…") : pick.title)
-                    .font(.title3.weight(.semibold))
+                    .font(.headline)
                     .lineLimit(2)
                 Text(summary)
-                    .font(.callout)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 12)
+            if pick.phase == .ready {
+                Toggle(isOn: Binding(get: { pick.allSelected },
+                                     set: { $0 ? pick.selectAll() : pick.selectNone() })) {
+                    Text("Select All")
+                }
+                .toggleStyle(.checkbox)
+            }
         }
     }
 
@@ -46,7 +61,7 @@ struct PlaylistPickerView: View {
         case .loading: return String(localized: "Looking up the videos in this link.")
         case .failed: return String(localized: "Couldn’t read this playlist.")
         case .ready:
-            var parts = [pick.entries.count == 1 ? String(localized: "1 item") : String(localized: "\(pick.entries.count) items")]
+            var parts = [String(localized: "\(pick.selected.count) of \(pick.entries.count) selected")]
             if let owner = pick.owner { parts.append(owner) }
             if pick.hiddenCount > 0 { parts.append(String(localized: "\(pick.hiddenCount) unavailable hidden")) }
             if !pick.downloaded.isEmpty { parts.append(String(localized: "\(pick.downloaded.count) already downloaded")) }
@@ -68,45 +83,61 @@ struct PlaylistPickerView: View {
                                    description: Text(message))
                 .frame(maxHeight: .infinity)
         case .ready:
-            VStack(spacing: 0) {
-                HStack {
-                    Toggle(isOn: Binding(get: { pick.allSelected },
-                                         set: { $0 ? pick.selectAll() : pick.selectNone() })) {
-                        Text("Select All")
-                    }
-                    .toggleStyle(.checkbox)
-                    Spacer()
-                    Text("\(pick.selected.count) of \(pick.entries.count) selected")
-                        .font(.callout.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.numericText())
+            table
+        }
+    }
+
+    private var table: some View {
+        Table(rows, selection: $highlighted) {
+            TableColumn("") { row in
+                Toggle(isOn: Binding(get: { pick.selected.contains(row.id) },
+                                     set: { _ in pick.toggle(row.entry) })) {
+                    Text(row.entry.title)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                Divider()
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(Array(pick.entries.enumerated()), id: \.element.id) { index, entry in
-                                PlaylistEntryRow(entry: entry, number: index + 1,
-                                                 isSelected: pick.selected.contains(entry.id),
-                                                 isDownloaded: pick.downloaded.contains(entry.id)) {
-                                    pick.toggle(entry)
-                                }
-                                .id(entry.id)
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                    }
-                    .onAppear {
-                        // A video link inside a playlist: show that video.
-                        if pick.selected.count == 1, let only = pick.selected.first {
-                            proxy.scrollTo(only, anchor: .center)
-                        }
+                .toggleStyle(.checkbox)
+                .labelsHidden()
+            }
+            .width(24)
+            TableColumn("#") { row in
+                Text("\(row.number)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 28, ideal: 36, max: 48)
+            TableColumn("Title") { row in
+                HStack(spacing: 6) {
+                    Text(row.entry.title)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if pick.downloaded.contains(row.id) {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(.green)
+                            .help("Already downloaded")
+                            .accessibilityLabel("Downloaded")
                     }
                 }
             }
+            TableColumn(pick.entries.first?.spotify != nil ? "Artist" : "Uploader") { row in
+                Text(row.entry.subtitle ?? "")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            TableColumn("Duration") { row in
+                Text(row.entry.duration.map(Format.duration) ?? "")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 56, ideal: 70, max: 90)
+        }
+        .onKeyPress(.space) {
+            guard !highlighted.isEmpty else { return .ignored }
+            // Checks them all, or unchecks them all when every highlighted row is already checked.
+            if highlighted.isSubset(of: pick.selected) {
+                pick.selected.subtract(highlighted)
+            } else {
+                pick.selected.formUnion(highlighted)
+            }
+            return .handled
         }
     }
 
@@ -122,17 +153,11 @@ struct PlaylistPickerView: View {
                     .help("Change the audio format in Settings → Format")
             } else {
                 FormatMenu()
-                    .controlSize(.large)
-                    .buttonStyle(.glass)
-                    .focusEffectDisabled()
             }
             Spacer()
             Button("Cancel", role: .cancel) { manager.cancelPick(pick) }
-                .controlSize(.large)
                 .keyboardShortcut(.cancelAction)
             Button(downloadTitle) { manager.confirm(pick) }
-                .controlSize(.large)
-                .buttonStyle(.glassProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(pick.phase != .ready || pick.selected.isEmpty)
         }
@@ -145,77 +170,5 @@ struct PlaylistPickerView: View {
         case pick.entries.count where pick.entries.count > 1: String(localized: "Download All \(pick.entries.count)")
         default: String(localized: "Download \(pick.selected.count) Items")
         }
-    }
-}
-
-private struct PlaylistEntryRow: View {
-    let entry: PlaylistEntry
-    let number: Int
-    let isSelected: Bool
-    var isDownloaded = false
-    let toggle: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .font(.title3)
-                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-                .contentTransition(.symbolEffect(.replace))
-            Text("\(number)")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.tertiary)
-                .frame(minWidth: 22, alignment: .trailing)
-            AsyncImage(url: entry.thumbnail) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    Image(systemName: entry.spotify != nil ? "music.note" : "play.rectangle")
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .frame(width: 72, height: 41)
-            .background(.fill.tertiary)
-            .clipShape(.rect(cornerRadius: Design.Radius.small, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.title)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                if let subtitle = entry.subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 8)
-            if isDownloaded {
-                Label("Downloaded", systemImage: "checkmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                    .labelStyle(.titleAndIcon)
-            }
-            if let duration = entry.duration {
-                Text(Format.duration(duration))
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background {
-            RoundedRectangle(cornerRadius: Design.Radius.thumbnail, style: .continuous)
-                .fill(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.10)) : AnyShapeStyle(.fill.quaternary))
-                .opacity(isSelected || hovering ? 1 : 0)
-        }
-        .contentShape(.rect(cornerRadius: Design.Radius.thumbnail))
-        .onHover { hovering = $0 }
-        .onTapGesture(perform: toggle)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel([entry.title, entry.subtitle, entry.duration.map(Format.duration),
-                             isDownloaded ? String(localized: "Downloaded") : nil]
-            .compactMap { $0 }.joined(separator: ", "))
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityAction { toggle() }
     }
 }
