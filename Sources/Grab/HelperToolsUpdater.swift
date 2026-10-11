@@ -1,0 +1,195 @@
+import Foundation
+import Observation
+
+/// Keeps private copies of the helper tools yt-dlp relies on, next to Grab's yt-dlp:
+/// - ffmpeg + ffprobe from Martin Riedl's signed static builds (https://ffmpeg.martin-riedl.de),
+///   for merging video and converting audio;
+/// - Deno from its official GitHub releases, which yt-dlp needs to solve YouTube's JavaScript checks.
+/// yt-dlp finds all of them through PATH.
+@MainActor
+@Observable
+final class HelperToolsUpdater {
+    var status: Updater.Status = .idle {
+        didSet { onStatusChange?() }
+    }
+    @ObservationIgnored var onStatusChange: (() -> Void)?
+    var ffmpegVersion: String? {
+        didSet { UserDefaults.standard.set(ffmpegVersion, forKey: "ffmpegVersion") }
+    }
+    var denoVersion: String? {
+        didSet { UserDefaults.standard.set(denoVersion, forKey: "denoVersion") }
+    }
+
+    @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var work: Task<Void, Never>?
+    /// While downloading: which tool, bytes so far and the total (0 if unknown).
+    var progress: (tool: String, done: Int64, total: Int64)?
+
+    static func path(_ tool: String) -> URL { Updater.directory.appendingPathComponent(tool) }
+    static func isInstalled(_ tool: String) -> Bool { FileManager.default.isExecutableFile(atPath: path(tool).path) }
+    static var ffmpegInstalled: Bool { isInstalled("ffmpeg") && isInstalled("ffprobe") }
+
+    /// Developer ID teams that sign each tool; anything else is rejected.
+    private static let signingTeams = ["ffmpeg": "KU3N25YGLU", "ffprobe": "KU3N25YGLU", "deno": "2H4KBF436B"]
+
+    private static let ffmpegArch = "arm64", denoTarget = "aarch64-apple-darwin"
+
+    init() {
+        ffmpegVersion = UserDefaults.standard.string(forKey: "ffmpegVersion")
+        denoVersion = UserDefaults.standard.string(forKey: "denoVersion")
+    }
+
+    var isBusy: Bool { status == .checking || status == .downloading }
+
+    var failureMessage: String? {
+        if case .failed(let message) = status { return message }
+        return nil
+    }
+
+    func startAutomaticChecks() {
+        timer?.invalidate()
+        timer = nil
+        guard UserDefaults.standard.bool(forKey: Prefs.autoUpdate) else { return }
+        Task { await check() }
+        timer = Timer.scheduledTimer(withTimeInterval: 60 * 60 * 24, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.check() }
+        }
+    }
+
+    /// Stops a check or download (a half-done download carries on next time).
+    func stop() {
+        work?.cancel()
+    }
+
+    func check(force: Bool = false) async {
+        guard !isBusy else { return }
+        let task = Task { await run(force: force) }
+        work = task
+        await task.value
+        work = nil
+    }
+
+    private func run(force: Bool) async {
+        status = .checking
+        progress = nil
+        defer { progress = nil }
+        var updated: [String] = []
+        var errors: [String] = []
+
+        do {
+            if try await updateFFmpeg(force: force) { updated.append("ffmpeg \(ffmpegVersion ?? "")") }
+        } catch is CancellationError {
+            status = .idle
+            return
+        } catch {
+            errors.append("ffmpeg: \(error.localizedDescription)")
+        }
+        do {
+            if try await updateDeno(force: force) { updated.append("Deno \(denoVersion ?? "")") }
+        } catch is CancellationError {
+            status = .idle
+            return
+        } catch {
+            errors.append("Deno: \(error.localizedDescription)")
+        }
+
+        if !errors.isEmpty {
+            status = .failed(errors.joined(separator: "\n"))
+        } else if !updated.isEmpty {
+            status = .updated(updated.joined(separator: ", "))
+        } else {
+            status = .upToDate
+        }
+    }
+
+    // MARK: - ffmpeg
+
+    private final class StopRedirects: NSObject, URLSessionTaskDelegate {
+        func urlSession(_ session: URLSession, task: URLSessionTask,
+                        willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest) async -> URLRequest? { nil }
+    }
+
+    /// Returns true if it installed something.
+    private func updateFFmpeg(force: Bool) async throws -> Bool {
+        // The "latest" link redirects to a versioned folder like .../arm64/1789931890_9.0.2/ffmpeg.zip
+        let latest = URL(string: "https://ffmpeg.martin-riedl.de/redirect/latest/macos/\(Self.ffmpegArch)/release/ffmpeg.zip")!
+        let (_, response) = try await URLSession.shared.data(from: latest, delegate: StopRedirects())
+        guard let location = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Location"),
+              let target = URL(string: location, relativeTo: latest)?.absoluteURL,
+              TrustedHosts.isAllowed(target, hosts: ["ffmpeg.martin-riedl.de"]),
+              target.lastPathComponent == "ffmpeg.zip"
+        else { throw Failure.noRelease }
+        let folder = target.deletingLastPathComponent()
+        let version = folder.lastPathComponent.split(separator: "_", maxSplits: 1).last.map(String.init)
+            ?? folder.lastPathComponent
+
+        if !force, Self.ffmpegInstalled, ffmpegVersion == version { return false }
+        status = .downloading
+        for tool in ["ffmpeg", "ffprobe"] {
+            let zip = folder.appendingPathComponent("\(tool).zip")
+            try await install(tool, zip: zip, checksum: zip.appendingPathExtension("sha256"))
+        }
+        ffmpegVersion = version
+        return true
+    }
+
+    // MARK: - Deno
+
+    private func updateDeno(force: Bool) async throws -> Bool {
+        guard let release = try await ToolDownloads.latestRelease(repo: "denoland/deno") else { throw Failure.noRelease }
+        let name = "deno-\(Self.denoTarget).zip"
+        guard let zip = release.asset(name), let sum = release.asset("\(name).sha256sum") else { throw Failure.noRelease }
+        let version = release.tag.hasPrefix("v") ? String(release.tag.dropFirst()) : release.tag
+
+        if !force, Self.isInstalled("deno"), denoVersion == version { return false }
+        status = .downloading
+        try await install("deno", zip: zip, checksum: sum)
+        denoVersion = version
+        return true
+    }
+
+    // MARK: - Shared install
+
+    private enum Failure: LocalizedError {
+        case noRelease, checksumMismatch, badBinary, badSignature
+
+        var errorDescription: String? {
+            switch self {
+            case .noRelease: String(localized: "Couldn’t find the latest build.")
+            case .checksumMismatch: String(localized: "The download didn’t match its published checksum, so it was discarded.")
+            case .badBinary: String(localized: "The downloaded tool didn’t run.")
+            case .badSignature: String(localized: "The download isn’t signed by its developer, so it was discarded.")
+            }
+        }
+    }
+
+    /// Downloads a zip containing `tool`, verifies it against a "<sha256>  <name>" checksum file,
+    /// checks the binary runs, and swaps it into Grab's tools folder.
+    private func install(_ tool: String, zip zipURL: URL, checksum: URL) async throws {
+        let (sumData, _) = try await URLSession.shared.data(from: checksum)
+        progress = (tool, 0, 0)
+        let zipFile = try await ToolDownloads.download(zipURL) { done, total in
+            Task { @MainActor [weak self] in self?.progress = (tool, done, total) }
+        }
+
+        defer { try? FileManager.default.removeItem(at: zipFile) }
+
+        let expected = String(decoding: sumData, as: UTF8.self)
+            .split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
+        guard !expected.isEmpty, try ToolDownloads.sha256(of: zipFile) == expected.lowercased() else { throw Failure.checksumMismatch }
+
+        let fm = FileManager.default
+        let staging = fm.temporaryDirectory.appendingPathComponent("GrabTool-\(UUID().uuidString)")
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: staging) }
+        guard try await ToolDownloads.runs("/usr/bin/ditto", ["-x", "-k", zipFile.path, staging.path], name: "unzip") else { throw Failure.badBinary }
+
+        let binary = staging.appendingPathComponent(tool)
+        guard let team = Self.signingTeams[tool], CodeSignature.isSigned(binary, byTeam: team) else { throw Failure.badSignature }
+        guard try await ToolDownloads.runs(binary.path, [tool == "deno" ? "--version" : "-version"], name: tool) else { throw Failure.badBinary }
+
+        try fm.createDirectory(at: Updater.directory, withIntermediateDirectories: true)
+        try ToolDownloads.install(binary, at: Self.path(tool))
+    }
+}
