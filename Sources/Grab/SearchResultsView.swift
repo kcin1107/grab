@@ -4,35 +4,29 @@ import SwiftUI
 struct SearchResultsView: View {
     @Environment(DownloadManager.self) private var manager
     @Bindable var session: SearchSession
+    @State private var selection: Set<SearchResult.ID> = []
 
     var body: some View {
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .padding(.bottom, 12)
+                .padding(.vertical, 16)
             Divider()
             content
             Divider()
             footer
                 .padding(16)
         }
-        .frame(width: 540, height: 440)
+        .frame(minWidth: 540, idealWidth: 640, minHeight: 420, idealHeight: 520)
+        .presentationSizing(.fitted)
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .font(.title3)
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
-                Text("Results for “\(session.query)”")
-                    .font(.title3.weight(.semibold))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer(minLength: 0)
-            }
+            Text("Results for “\(session.query)”")
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.tail)
             Picker("Search in", selection: Binding(get: { session.kind },
                                                    set: { manager.changeSearchKind($0) })) {
                 ForEach(SearchSession.Kind.allCases) { Text($0.label).tag($0) }
@@ -50,30 +44,41 @@ struct SearchResultsView: View {
                 .controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
-            ContentUnavailableView("Search Didn’t Work", systemImage: "wifi.exclamationmark",
+            ContentUnavailableView("Search Failed", systemImage: "wifi.exclamationmark",
                                    description: Text("Check your internet connection and try again."))
                 .frame(maxHeight: .infinity)
         case .ready where session.results.isEmpty:
             ContentUnavailableView.search(text: session.query)
                 .frame(maxHeight: .infinity)
         case .ready:
-            ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(session.results) { result in
-                        SearchResultRow(result: result, isMusic: session.kind == .music,
-                                        isAdded: session.added.contains(result.id),
-                                        existing: manager.alreadyDownloaded(result.url, isAudio: isAudio)?.existingFile) {
-                            manager.download(result, from: session)
-                        }
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+            List(session.results, selection: $selection) { result in
+                SearchResultRow(result: result, isMusic: session.kind == .music,
+                                isAdded: session.added.contains(result.id),
+                                existing: manager.alreadyDownloaded(result.url, isAudio: isAudio)?.existingFile)
+            }
+            .contextMenu(forSelectionType: SearchResult.ID.self) { ids in
+                let pending = downloadable(ids)
+                Button("Download") { download(pending) }
+                    .disabled(pending.isEmpty)
+            } primaryAction: { ids in
+                download(downloadable(ids))
             }
         }
     }
 
     private var isAudio: Bool { session.kind == .music || DownloadOptions.current.isAudio }
+
+    /// The chosen results that haven't been added or downloaded already, in list order.
+    private func downloadable(_ ids: Set<SearchResult.ID>) -> [SearchResult] {
+        session.results.filter { result in
+            ids.contains(result.id) && !session.added.contains(result.id)
+                && manager.alreadyDownloaded(result.url, isAudio: isAudio)?.existingFile == nil
+        }
+    }
+
+    private func download(_ results: [SearchResult]) {
+        for result in results { manager.download(result, from: session) }
+    }
 
     private var footer: some View {
         HStack(spacing: 10) {
@@ -84,9 +89,6 @@ struct SearchResultsView: View {
                     .help("Change the audio format in Settings → Format")
             } else {
                 FormatMenu()
-                    .controlSize(.large)
-                    .buttonStyle(.glass)
-                    .focusEffectDisabled()
             }
             Spacer()
             if !session.added.isEmpty {
@@ -95,10 +97,11 @@ struct SearchResultsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Button("Done") { manager.search = nil }
-                .controlSize(.large)
-                .buttonStyle(.glassProminent)
+            Button("Done", role: .cancel) { manager.search = nil }
+                .keyboardShortcut(.cancelAction)
+            Button("Download") { download(downloadable(selection)) }
                 .keyboardShortcut(.defaultAction)
+                .disabled(downloadable(selection).isEmpty)
         }
     }
 }
@@ -108,8 +111,6 @@ private struct SearchResultRow: View {
     let isMusic: Bool
     let isAdded: Bool
     let existing: URL?
-    let download: () -> Void
-    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -140,7 +141,7 @@ private struct SearchResultRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
-            // Title, artist and views read as one item; the download button stays its own control.
+            // Title, artist and views read as one item; the status stays its own control.
             .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
             if let duration = result.duration {
@@ -148,26 +149,16 @@ private struct SearchResultRow: View {
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-            action
+            status
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background {
-            RoundedRectangle(cornerRadius: Design.Radius.thumbnail, style: .continuous)
-                .fill(.fill.quaternary)
-                .opacity(hovering ? 1 : 0)
-        }
-        .onHover { hovering = $0 }
     }
 
     @ViewBuilder
-    private var action: some View {
+    private var status: some View {
         if isAdded {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
+            Label("Added", systemImage: "checkmark.circle.fill")
+                .labelStyle(.iconOnly)
                 .foregroundStyle(.green)
-                .frame(width: 30)
-                .accessibilityLabel("Added")
         } else if let existing {
             Button { MacPlatform.reveal([existing]) } label: {
                 Label("Downloaded", systemImage: "checkmark.circle")
@@ -176,17 +167,6 @@ private struct SearchResultRow: View {
             .buttonStyle(.borderless)
             .foregroundStyle(.green)
             .help("Already downloaded. Click to show it in Finder.")
-        } else {
-            Button(action: download) {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.title2)
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.tint)
-                    .frame(width: 30)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Download \(result.title)")
-            .help(isMusic ? String(localized: "Download as audio") : String(localized: "Download"))
         }
     }
 }
