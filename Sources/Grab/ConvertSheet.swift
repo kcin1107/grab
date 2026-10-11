@@ -8,6 +8,7 @@ struct ConvertSheet: View {
     @AppStorage(Prefs.audioFormat) private var audioFormat: AudioFormat = .m4a
     @AppStorage("compressPercent") private var percent = 50
     @AppStorage("gifWidth") private var gifWidth = 480
+    @State private var preset: Conversion.Preset = .audio
     /// nil: Automatic, 0: Original, otherwise a height.
     @State private var resolution: Int?
     @State private var onlyPart = false
@@ -18,125 +19,92 @@ struct ConvertSheet: View {
 
     private var hasVideo: Bool { files.contains(where: Converting.isVideo) }
 
-    private var heading: String {
-        files.count == 1
-            ? String(localized: "Convert “\(files[0].lastPathComponent)”")
-            : String(localized: "Convert \(files.count) Files")
-    }
+    /// Trim always needs a part; the other options can optionally use one.
+    private var usesPart: Bool { preset == .trim || onlyPart }
 
     /// The part to convert, or nil for the whole file.
-    private var clip: ClipRange? { onlyPart ? ClipRange.from(start: partStart, end: partEnd) : nil }
-    private var partIsInvalid: Bool { onlyPart && clip == nil }
+    private var clip: ClipRange? { usesPart ? ClipRange.from(start: partStart, end: partEnd) : nil }
+    private var canConvert: Bool {
+        guard !usesPart || clip != nil else { return false }
+        if preset.needsVideo && !hasVideo { return false }
+        return preset != .compress || details.count == files.count
+    }
+
+    /// The options in the order they're offered. Ones that need video are left out for audio-only files.
+    private var presets: [Conversion.Preset] {
+        [Conversion.Preset.audio, .mp4, .trim, .gif, .compress].filter { hasVideo || !$0.needsVideo }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.section) {
+        VStack(spacing: 0) {
             header
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    partRow
-                        .padding(.bottom, 6)
-                    presetButton(.audio)
-                    presetButton(.mp4)
-                    presetButton(.trim, enabled: clip != nil)
-                    gifCard
-                    compressCard
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            Form {
+                Section {
+                    Picker("Convert to", selection: $preset) {
+                        ForEach(presets) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.radioGroup)
+                } footer: {
+                    Text(preset.detail)
+                }
+                settings
+                if preset != .trim {
+                    Section {
+                        Toggle("Only part of the file", isOn: $onlyPart)
+                        if onlyPart { partFields }
+                    }
                 }
             }
-            .frame(maxHeight: 560)
-            .fixedSize(horizontal: false, vertical: true)
-
-            HStack {
-                Picker("Audio format", selection: $audioFormat) {
-                    ForEach(AudioFormat.allCases) { Text($0.label).tag($0) }
-                }
-                .fixedSize()
-                .help("Used by Extract Audio")
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-            }
+            .formStyle(.grouped)
+            Divider()
+            footer
+                .padding(16)
         }
-        .padding(Design.Spacing.sheet)
         .frame(width: 500)
         .task { await loadDetails() }
     }
 
+    // MARK: - Header and footer
+
     private var header: some View {
-        HStack(spacing: 14) {
-            FileIcon(path: files.first?.path ?? "", size: 48)
+        HStack(spacing: 12) {
+            FileIcon(path: files.first?.path ?? "", size: 40)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(heading)
-                    .font(.title3.weight(.semibold))
+                Text(files.count == 1 ? files[0].lastPathComponent : String(localized: "\(files.count) Files"))
+                    .font(.headline)
                     .lineLimit(2)
                     .truncationMode(.middle)
                 if files.count > 1 {
                     Text(files.map(\.lastPathComponent).joined(separator: ", "))
-                        .font(.callout)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
-                } else if let file = files.first, let duration = details[file]?.info?.duration {
-                    Text(Format.duration(duration))
-                        .font(.callout.monospacedDigit())
+                } else if let file = files.first, let detail = details[file] {
+                    Text([detail.info?.duration.map(Format.duration), detail.size > 0 ? Format.bytes(detail.size) : nil]
+                        .compactMap { $0 }.joined(separator: " · "))
+                        .font(.subheadline.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
             }
+            Spacer(minLength: 0)
         }
     }
 
-    // MARK: - Part of the file
-
-    private var partRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle("Only part of the file", isOn: $onlyPart.animation(.snappy(duration: 0.2)))
-            if onlyPart {
-                ClipRangeFields(prefix: "From", start: $partStart, end: $partEnd, spacing: 8, fieldWidth: 70)
-                    .textFieldStyle(.roundedBorder)
-                    .transition(.opacity)
-            }
+    private var footer: some View {
+        HStack {
+            Spacer()
+            Button("Cancel", role: .cancel) { dismiss() }
+                .keyboardShortcut(.cancelAction)
+            Button("Convert") { start() }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canConvert)
         }
     }
 
-    // MARK: - Presets
-
-    private func presetButton(_ preset: Conversion.Preset, enabled: Bool = true) -> some View {
-        Button {
-            start(preset)
-        } label: {
-            HStack(spacing: 14) {
-                presetText(preset)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .padding(12)
-            .contentShape(.rect(cornerRadius: Design.Radius.box))
-        }
-        .buttonStyle(ConvertCardStyle())
-        .disabled(!enabled || partIsInvalid || (preset.needsVideo && !hasVideo))
-        .accessibilityElement(children: .combine)
-    }
-
-    private func presetText(_ preset: Conversion.Preset) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: preset.symbol)
-                .font(.title2)
-                .foregroundStyle(.tint)
-                .frame(width: 32)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(preset.title).font(.headline)
-                Text(preset.detail)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func start(_ preset: Conversion.Preset) {
+    private func start() {
         manager.convert(files, preset: preset,
                         percent: preset == .compress ? percent : nil,
                         resolution: preset == .compress ? resolution : nil,
@@ -145,22 +113,30 @@ struct ConvertSheet: View {
         dismiss()
     }
 
-    private func card<Content: View>(_ preset: Conversion.Preset, button: LocalizedStringKey, enabled: Bool,
-                                     @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            presetText(preset)
-            VStack(alignment: .leading, spacing: 10) { content() }
-                .padding(.leading, 46)
-            HStack {
-                Spacer()
-                Button(button) { start(preset) }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!enabled || partIsInvalid)
+    // MARK: - Settings of the chosen option
+
+    @ViewBuilder
+    private var settings: some View {
+        switch preset {
+        case .audio:
+            Section {
+                Picker("Audio format", selection: $audioFormat) {
+                    ForEach(AudioFormat.allCases) { Text($0.label).tag($0) }
+                }
             }
+        case .mp4:
+            EmptyView()
+        case .trim:
+            Section { partFields }
+        case .gif:
+            gifSettings
+        case .compress:
+            compressSettings
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: Design.Radius.box, style: .continuous).fill(.fill.tertiary).opacity(0.8))
-        .opacity(enabled ? 1 : 0.45)
+    }
+
+    private var partFields: some View {
+        ClipRangeFields(prefix: "From", start: $partStart, end: $partEnd, spacing: 8, fieldWidth: 70)
     }
 
     // MARK: - GIF
@@ -173,16 +149,15 @@ struct ConvertSheet: View {
         return end.map { $0 - clip.start }
     }
 
-    private var gifCard: some View {
-        card(.gif, button: "Make GIF", enabled: hasVideo) {
+    private var gifSettings: some View {
+        Section {
             Picker("Size", selection: $gifWidth) {
                 Text("Small (320 px)").tag(320)
                 Text("Medium (480 px)").tag(480)
                 Text("Large (720 px)").tag(720)
             }
-            .fixedSize()
             if let length = gifLength, length > 20 {
-                Label("GIFs of \(Format.duration(length)) get very big. Pick a shorter part above.",
+                Label("GIFs of \(Format.duration(length)) get very big. Pick a shorter part below.",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.callout)
                     .foregroundStyle(.orange)
@@ -192,8 +167,8 @@ struct ConvertSheet: View {
 
     // MARK: - Compress
 
-    private var compressCard: some View {
-        card(.compress, button: "Compress", enabled: details.count == files.count) {
+    private var compressSettings: some View {
+        Section {
             LabeledContent("Target size") {
                 HStack(spacing: 10) {
                     Slider(value: Binding(get: { Double(percent) }, set: { percent = Int($0) }), in: 10...90, step: 5)
@@ -210,7 +185,6 @@ struct ConvertSheet: View {
                     Text(originalLabel).tag(Int?.some(0))
                     ForEach(Converting.resolutions(below: tallest), id: \.self) { Text("\($0)p").tag(Int?.some($0)) }
                 }
-                .fixedSize()
                 .help("Automatic keeps the resolution unless the file gets so small that a lower one looks sharper")
             }
             estimate
@@ -283,21 +257,5 @@ struct ConvertSheet: View {
             let info = await manager.mediaInfo(for: file)
             details[file] = (size, info)
         }
-    }
-}
-
-private struct ConvertCardStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-    @State private var hovering = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: Design.Radius.box, style: .continuous)
-                    .fill(.fill.tertiary)
-                    .opacity(configuration.isPressed ? 1.6 : (hovering && isEnabled ? 1.2 : 0.8))
-            }
-            .opacity(isEnabled ? 1 : 0.45)
-            .onHover { hovering = $0 }
     }
 }
