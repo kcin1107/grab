@@ -4,19 +4,15 @@ struct DownloadRow: View {
     @Environment(DownloadManager.self) private var manager
     @Environment(\.openURL) private var openURL
     let item: DownloadItem
-    var isSelected = false
-    var onSelect: () -> Void = {}
-    var onQuickLook: () -> Void = {}
-    @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             thumbnail
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
-                    .font(.headline)
+                    .font(.body.weight(.semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
 
@@ -31,36 +27,12 @@ struct DownloadRow: View {
             // VoiceOver reads title, format, uploader and status as one item.
             .accessibilityElement(children: .combine)
 
-            actionButton
+            actionButtons
         }
-        .padding(12)
-        .background {
-            RoundedRectangle(cornerRadius: Design.Radius.card, style: .continuous)
-                .fill(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.16)) : AnyShapeStyle(.fill.quaternary))
-                .opacity(isSelected || hovering ? 1 : 0.6)
-        }
-        .overlay {
-            if isSelected {
-                RoundedRectangle(cornerRadius: Design.Radius.card, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
-            }
-        }
-        .contentShape(.rect(cornerRadius: Design.Radius.card))
-        .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.15), value: hovering)
-        .animation(.easeOut(duration: 0.12), value: isSelected)
-        .onTapGesture(count: 2) { open() }
-        .simultaneousGesture(TapGesture().onEnded { onSelect() })
-        // Drag a finished download straight into Finder, Mail, an editor…
-        .onDrag {
-            guard let file = item.existingFile else { return NSItemProvider() }
-            return NSItemProvider(contentsOf: file) ?? NSItemProvider()
-        }
-        .contextMenu { menu }
+        .padding(.vertical, 4)
+        .modifier(FileDrag(file: item.existingFile))
         .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityAction(named: "Open") { open() }
-        .accessibilityAction(named: "Quick Look") { onQuickLook() }
     }
 
     // MARK: - Pieces
@@ -71,22 +43,22 @@ struct DownloadRow: View {
                 image.resizable().scaledToFill()
             } else {
                 Image(systemName: item.conversion != nil ? "arrow.triangle.2.circlepath" : (item.options.isAudio ? "music.note" : "play.rectangle"))
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundStyle(.tertiary)
             }
         }
-        .frame(width: 128, height: 72)
+        .frame(width: 80, height: 45)
         .background(.fill.tertiary)
-        .clipShape(.rect(cornerRadius: Design.Radius.thumbnail, style: .continuous))
+        .clipShape(.rect(cornerRadius: 6, style: .continuous))
         .overlay(alignment: .bottomTrailing) {
             if let duration = displayedDuration {
                 Text(Format.duration(duration))
                     .font(.caption2.weight(.semibold).monospacedDigit())
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(.black.opacity(0.65), in: .rect(cornerRadius: Design.Radius.badge))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(.black.opacity(0.7), in: .rect(cornerRadius: 3, style: .continuous))
                     .foregroundStyle(.white)
-                    .padding(5)
+                    .padding(3)
             }
         }
     }
@@ -106,8 +78,9 @@ struct DownloadRow: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
                     .foregroundStyle(.white)
-                    .background(service == .spotify ? Color(red: 0.11, green: 0.73, blue: 0.33)
-                                                    : Color(red: 0.98, green: 0.14, blue: 0.24), in: .capsule)
+                    // Dark enough for the white text to stay readable.
+                    .background(service == .spotify ? Color(red: 0.07, green: 0.5, blue: 0.22)
+                                                    : Color(red: 0.78, green: 0.08, blue: 0.2), in: .capsule)
                     .help(service == .spotify ? String(localized: "Matched on YouTube Music and tagged with Spotify’s metadata")
                                               : String(localized: "Matched on YouTube Music and tagged with Apple Music’s metadata and cover"))
             }
@@ -155,19 +128,23 @@ struct DownloadRow: View {
             .foregroundStyle(.secondary)
 
         case .downloading:
-            VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
                 ProgressView(value: item.progress)
                     .accessibilityLabel("Download progress")
                     .progressViewStyle(.linear)
+                    .frame(maxWidth: 160)
                 Text(downloadStats)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                     .contentTransition(.numericText())
             }
 
         case .processing:
-            VStack(alignment: .leading, spacing: 4) {
-                ProgressView().progressViewStyle(.linear)
+            HStack(spacing: 8) {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: 160)
                 Text(item.phase ?? String(localized: "Finishing up…"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -180,9 +157,13 @@ struct DownloadRow: View {
 
         case .finished:
             HStack(spacing: 6) {
-                Label(item.fileSize.map { String(localized: "Done · \(Format.bytes($0))") } ?? String(localized: "Done"), systemImage: "checkmark.circle.fill")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
+                Label {
+                    Text(item.fileSize.map { String(localized: "Done · \(Format.bytes($0))") } ?? String(localized: "Done"))
+                        .foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                }
+                .font(.caption)
                 if let count = item.chapterCount {
                     Label("\(count) chapters", systemImage: "list.number")
                         .font(.caption)
@@ -209,20 +190,25 @@ struct DownloadRow: View {
             }
 
         case .failed:
-            Label(item.errorMessage ?? String(localized: "Download failed"), systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .lineLimit(2)
-                .help(item.errorMessage ?? "")
+            Label {
+                Text(item.errorMessage ?? String(localized: "Download failed"))
+                    .foregroundStyle(.secondary)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+            }
+            .font(.caption)
+            .lineLimit(1)
+            .help(item.errorMessage ?? "")
 
         case .paused:
-            VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
                 ProgressView(value: item.progress)
                     .progressViewStyle(.linear)
                     .tint(.secondary)
                     .accessibilityLabel("Download progress")
-                Label(String(localized: "Paused · \(Int(item.progress * 100))%"), systemImage: "pause.circle")
-                    .font(.caption)
+                    .frame(maxWidth: 160)
+                Label(String(localized: "Paused · \(percent)"), systemImage: "pause.circle")
+                    .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
 
@@ -233,8 +219,12 @@ struct DownloadRow: View {
         }
     }
 
+    private var percent: String {
+        item.progress.formatted(.percent.precision(.fractionLength(0)))
+    }
+
     private var downloadStats: String {
-        var parts = ["\(Int(item.progress * 100))%"]
+        var parts = [percent]
         if item.conversion != nil { parts.insert(String(localized: "Converting"), at: 0) }
         if let speed = item.speed { parts.append("\(Format.bytes(Int64(speed)))/s") }
         if let eta = item.eta, eta > 0 { parts.append(String(localized: "\(Format.duration(eta)) left")) }
@@ -242,84 +232,43 @@ struct DownloadRow: View {
     }
 
     @ViewBuilder
-    private var actionButton: some View {
-        HStack(spacing: 8) {
+    private var actionButtons: some View {
+        HStack(spacing: 6) {
             switch item.state {
             case .downloading where item.conversion != nil, .queued where item.conversion != nil:
                 cancelButton
             case .downloading, .queued:
-                Button { manager.pause(item) } label: { Image(systemName: "pause.fill") }
-                    .accessibilityLabel("Pause Download")
-                    .help("Pause")
+                symbolButton("pause.circle.fill", label: "Pause Download", help: "Pause") { manager.pause(item) }
                 cancelButton
             case .paused:
-                Button { manager.resume(item) } label: { Image(systemName: "play.fill") }
-                    .accessibilityLabel("Resume Download")
-                    .help("Resume")
+                symbolButton("play.circle.fill", label: "Resume Download", help: "Resume") { manager.resume(item) }
                 cancelButton
             case .starting, .processing:
                 cancelButton
             case .finished where item.fileMissing:
-                Button { manager.retry(item) } label: { Image(systemName: "arrow.clockwise") }
-                    .accessibilityLabel("Download Again")
-                    .help("Download Again")
+                symbolButton("arrow.clockwise.circle.fill", label: "Download Again", help: "Download Again") { manager.retry(item) }
             case .finished:
-                Button { reveal() } label: { Image(systemName: "magnifyingglass") }
-                    .accessibilityLabel("Show in Finder")
-                    .help("Show in Finder")
+                symbolButton("magnifyingglass.circle.fill", label: "Show in Finder", help: "Show in Finder") { reveal() }
             case .failed, .cancelled:
-                Button { manager.retry(item) } label: { Image(systemName: "arrow.clockwise") }
-                    .accessibilityLabel("Try Again")
-                    .help("Try Again")
+                symbolButton("arrow.clockwise.circle.fill", label: "Try Again", help: "Try Again") { manager.retry(item) }
             }
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
     }
 
     private var cancelButton: some View {
-        Button { manager.cancel(item) } label: { Image(systemName: "xmark") }
-            .accessibilityLabel("Cancel Download")
-            .help("Cancel")
+        symbolButton("xmark.circle.fill", label: "Cancel Download", help: "Cancel") { manager.cancel(item) }
     }
 
-    @ViewBuilder
-    private var menu: some View {
-        if item.existingFile != nil {
-            Button("Open", action: open)
-            Button("Quick Look", action: onQuickLook)
-            Button("Show in Finder", action: reveal)
-            Divider()
+    /// A borderless round symbol button, the way Safari's download list draws its actions.
+    private func symbolButton(_ symbol: String, label: LocalizedStringKey, help: LocalizedStringKey,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).imageScale(.large)
         }
-        if item.conversion == nil, item.state == .downloading || item.state == .queued {
-            Button("Pause") { manager.pause(item) }
-        } else if item.state == .paused {
-            Button("Resume") { manager.resume(item) }
-        }
-        if item.isActive || item.state == .paused {
-            Button("Cancel") { manager.cancel(item) }
-        } else if item.fileMissing {
-            Button("Download Again") { manager.retry(item) }
-        } else if item.state != .finished {
-            Button("Try Again") { manager.retry(item) }
-        }
-        if let conversion = item.conversion {
-            Button("Show Original in Finder") {
-                MacPlatform.reveal([URL(fileURLWithPath: conversion.source)])
-            }
-        } else {
-            Button("Copy Link") {
-                MacPlatform.copy(item.url)
-            }
-            Button("Open Link in Browser") {
-                if let url = URL(string: item.url) { openURL(url) }
-            }
-        }
-        Divider()
-        Button("Remove from List", role: .destructive) {
-            withAnimation { manager.remove(item) }
-        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel(label)
+        .help(help)
     }
 
     private func open() {
@@ -335,9 +284,22 @@ struct DownloadRow: View {
     }
 }
 
+/// Drags a finished download's file into Finder, Mail, an editor… Nothing to drag until it exists.
+private struct FileDrag: ViewModifier {
+    let file: URL?
+
+    func body(content: Content) -> some View {
+        if let file {
+            content.draggable(file)
+        } else {
+            content
+        }
+    }
+}
+
 enum Format {
     static func bytes(_ count: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: count, countStyle: .file)
+        count.formatted(.byteCount(style: .file))
     }
 
     static func duration(_ seconds: Double) -> String {
