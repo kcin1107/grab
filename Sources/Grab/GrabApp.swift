@@ -24,9 +24,9 @@ struct GrabApp: App {
             CommandGroup(replacing: .newItem) {
                 FileCommands(manager: manager)
             }
-            CommandGroup(after: .pasteboard) {
-                Divider()
-                ClipboardCommand(manager: manager)
+            DownloadCommands(manager: manager)
+            CommandGroup(replacing: .help) {
+                Link("Grab Help", destination: URL(string: "https://github.com/kcin1107/grab#readme")!)
             }
         }
 
@@ -51,8 +51,8 @@ private struct SettingsCommand: View {
     }
 }
 
-/// File → Download Links from File… and Convert Files…. The models never open windows, so the main
-/// window is brought back here first.
+/// File → Download Links from File…, Convert Files… and Download Link from Clipboard. The models
+/// never open windows, so the main window is brought back here first.
 private struct FileCommands: View {
     let manager: DownloadManager
     @Environment(\.openWindow) private var openWindow
@@ -62,19 +62,13 @@ private struct FileCommands: View {
             openWindow(id: "main")
             manager.chooseLinkFile()
         }
+        .keyboardShortcut("o", modifiers: [.command, .shift])
         Button("Convert Files…") {
             openWindow(id: "main")
             manager.chooseFilesToConvert()
         }
         .keyboardShortcut("o")
-    }
-}
-
-private struct ClipboardCommand: View {
-    let manager: DownloadManager
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
+        Divider()
         Button("Download Link from Clipboard") {
             let links = Links.extract(urls: MacPlatform.pasteboardURLs(), text: MacPlatform.pasteboardString())
             if links.isEmpty {
