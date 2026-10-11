@@ -25,6 +25,10 @@ struct DownloadSelection {
     var canRetry: Bool { items.contains(where: Self.isRetryable) }
     var canCopyLink: Bool { items.contains { $0.conversion == nil } }
     var canRemove: Bool { !items.isEmpty }
+    /// The web page of a single download, or the original file of a single conversion.
+    private var single: DownloadItem? { items.count == 1 ? items.first : nil }
+    var canOpenLink: Bool { single.map { $0.conversion == nil && URL(string: $0.url) != nil } ?? false }
+    var originalFile: URL? { single?.conversion.map { URL(fileURLWithPath: $0.source) } }
 
     private static func isRetryable(_ item: DownloadItem) -> Bool {
         item.fileMissing || item.state == .failed || item.state == .cancelled
@@ -39,6 +43,10 @@ struct DownloadSelection {
     func copyLinks() {
         MacPlatform.copy(items.filter { $0.conversion == nil }.map(\.url).joined(separator: "\n"))
     }
+    func openLink() {
+        if let url = single.flatMap({ URL(string: $0.url) }) { NSWorkspace.shared.open(url) }
+    }
+    func revealOriginal() { originalFile.map { MacPlatform.reveal([$0]) } }
     func remove() { withAnimation { items.forEach { manager.remove($0) } } }
 }
 
@@ -63,6 +71,8 @@ struct DownloadContextMenu: View {
             if selection.canCancel { Button("Cancel", action: selection.cancel) }
             if selection.canRetry { Button("Try Again", action: selection.retry) }
             if selection.canCopyLink { Button("Copy Link", action: selection.copyLinks) }
+            if selection.canOpenLink { Button("Open Link in Browser", action: selection.openLink) }
+            if selection.originalFile != nil { Button("Show Original in Finder", action: selection.revealOriginal) }
             Divider()
             Button("Remove from List", role: .destructive, action: selection.remove)
             Divider()

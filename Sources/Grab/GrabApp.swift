@@ -45,12 +45,12 @@ private struct FileCommands: View {
     var body: some View {
         Button("Download Links from File…") {
             openWindow(id: "main")
-            manager.chooseLinkFile()
+            manager.fileRequest = .linkFiles
         }
         .keyboardShortcut("o", modifiers: [.command, .shift])
         Button("Convert Files…") {
             openWindow(id: "main")
-            manager.chooseFilesToConvert()
+            manager.fileRequest = .convertFiles
         }
         .keyboardShortcut("o")
         Divider()

@@ -5,11 +5,6 @@ import SwiftUI
 /// and file icons. Every other file talks to AppKit through here.
 @MainActor
 enum MacPlatform {
-    /// Brings Grab to the front.
-    static func activate() {
-        NSApp.activate()
-    }
-
     /// Shows files in a Finder window, selected.
     static func reveal(_ urls: [URL]) {
         NSWorkspace.shared.activateFileViewerSelecting(urls)
