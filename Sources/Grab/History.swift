@@ -64,8 +64,8 @@ enum History {
         }
     }
 
-    /// Saves the list. Downloads still running (only when quitting) are saved as interrupted,
-    /// so they come back with Try Again.
+    /// Saves the list. Downloads still running (only when quitting) are saved as paused,
+    /// so they come back ready to resume.
     @MainActor static func save(_ items: [DownloadItem]) {
         let entries = items.prefix(limit).map { item -> Entry in
             let state: String

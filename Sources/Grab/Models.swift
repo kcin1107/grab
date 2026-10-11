@@ -136,7 +136,7 @@ struct DownloadOptions: Equatable, Codable {
             var args = ["-f", "ba/b", "-x"]
             if audioFormat != .original { args += ["--audio-format", audioFormat.rawValue] }
             // Take the best source, and prefer a codec only when that avoids converting:
-            // M4A keeps AAC (256 kbps with YouTube Premium cookies), Opus keeps Opus, and
+            // M4A keeps AAC Opus keeps Opus, and
             // everything else (original, or formats that are always converted) takes the
             // highest bitrate on offer.
             switch audioFormat {
@@ -188,7 +188,6 @@ final class DownloadItem: Identifiable {
     /// Set when this item came from a Spotify link and is matched against YouTube Music.
     var spotify: SpotifyTrack?
     var resolvedURL: String?
-
 
     var state: State = .queued
     var progress: Double = 0

@@ -99,7 +99,7 @@ struct DownloadRow: View {
 
     private var details: some View {
         HStack(spacing: 6) {
-            if let service = item.spotify?.source ?? MusicLinks.service(of: item.url) {
+            if let service = item.spotify?.service ?? MusicLinks.service(of: item.url) {
                 Text(service.name)
                     .font(.caption2.weight(.semibold))
                     .padding(.horizontal, 6)
@@ -272,7 +272,7 @@ struct DownloadRow: View {
                     .help("Try Again")
             }
         }
-        .glassButtonStyle()
+        .buttonStyle(.glass)
         .buttonBorderShape(.circle)
         .controlSize(.large)
     }

@@ -85,7 +85,7 @@ struct SearchResultsView: View {
             } else {
                 FormatMenu()
                     .controlSize(.large)
-                    .glassButtonStyle()
+                    .buttonStyle(.glass)
                     .focusEffectDisabled()
             }
             Spacer()
@@ -97,7 +97,7 @@ struct SearchResultsView: View {
             }
             Button("Done") { manager.search = nil }
                 .controlSize(.large)
-                .glassProminentButtonStyle()
+                .buttonStyle(.glassProminent)
                 .keyboardShortcut(.defaultAction)
         }
     }

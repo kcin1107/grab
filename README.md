@@ -13,7 +13,6 @@ Grab is a stripped-down personal build of [Pluck](https://github.com/Astrofrogge
 - Embeds cover art, tags and subtitles
 - Search YouTube and YouTube Music from the link field
 - Spotify and Apple Music links, matched to the same song on YouTube Music
-- Uses your browser's cookies for sign-in-only or age-restricted videos
 - Pause and resume, plus a history of the last 200 downloads
 - Converts files already on your Mac: drop a video or song on the window (or use File → Convert Files…) to extract audio, convert to MP4, trim, make a GIF or shrink a video
 
@@ -21,7 +20,7 @@ Grab installs and updates its own copies of yt-dlp, ffmpeg and Deno in `~/Librar
 
 ## Requirements
 
-macOS 14 or later, Apple silicon or Intel.
+macOS 26 or later on Apple silicon. Grab works with public videos only: it never reads browser cookies, so anything that needs a login (members-only, age-restricted, private playlists) is out of reach.
 
 ## Building
 

@@ -18,7 +18,6 @@ enum Prefs {
     static let embedThumbnail = "embedThumbnail"
     static let embedSubtitles = "embedSubtitles"
     static let removeSponsors = "removeSponsors"
-    static let cookiesBrowser = "cookiesBrowser"
     static let ytdlpPath = "ytdlpPath"
     static let autoUpdate = "autoUpdate"
     static let nightly = "nightly"
@@ -44,7 +43,6 @@ enum Prefs {
             embedThumbnail: true,
             embedSubtitles: false,
             removeSponsors: false,
-            cookiesBrowser: "none",
             ytdlpPath: "",
             autoUpdate: true,
             nightly: false,
@@ -92,7 +90,6 @@ final class DownloadManager {
     func saveHistory(includingActive: Bool = false) {
         History.save(includingActive ? items : items.filter { !$0.isActive })
     }
-
 
     var activeCount: Int { items.filter(\.isActive).count }
     var hasFinished: Bool { items.contains(where: \.isDone) }
@@ -534,7 +531,7 @@ final class DownloadManager {
             }
         } else {
             let args = ["--flat-playlist", "--dump-single-json", "--no-warnings", "--yes-playlist",
-                        "--playlist-end", "\(Playlists.limit)"] + cookieArguments() + ["--", pick.sourceURL]
+                        "--playlist-end", "\(Playlists.limit)"] + ["--", pick.sourceURL]
             guard let data = await capture(args), let playlist = Playlists.parse(data) else {
                 // Not a playlist after all, or unreadable: download the link as a single video.
                 cancelPick(pick)
@@ -595,14 +592,6 @@ final class DownloadManager {
         items.insert(contentsOf: newItems, at: 0)
         cancelPick(pick)
         pump()
-    }
-
-    func cookieArguments() -> [String] {
-        // Only when the cookies can actually be read: otherwise yt-dlp stops every download with
-        // "could not find … cookies database" (macOS 27 blocks Chrome, Brave, Edge and Firefox).
-        guard let browser = CookieBrowser(rawValue: defaults.string(forKey: Prefs.cookiesBrowser) ?? ""),
-              browser.isInstalled, browser.hasReadableCookies, let value = browser.argument else { return [] }
-        return ["--cookies-from-browser", value]
     }
 
     /// Spotify and Apple Music track links: read the song's details, then match it on YouTube Music.
@@ -719,7 +708,7 @@ final class DownloadManager {
         saveHistory()
     }
 
-    /// Called when Grab quits: remembers unfinished downloads (as interrupted) and stops yt-dlp,
+    /// Called when Grab quits: remembers unfinished downloads (as paused) and stops yt-dlp,
     /// which would otherwise keep running in the background with nothing watching it.
     func shutDown() {
         saveHistory(includingActive: true)
@@ -792,9 +781,6 @@ final class DownloadManager {
             if defaults.bool(forKey: Prefs.removeSponsors) { args += ["--sponsorblock-remove", "sponsor"] }
         }
 
-        // A raw stream found by loading a page is a link that page chose. Never send the user's
-        // browser cookies along with it (the page was loaded logged out anyway).
-        args += cookieArguments()
         args += ["--", url]
         return args
     }
@@ -882,14 +868,10 @@ final class DownloadManager {
                 var message = line
                     .replacingOccurrences(of: "ERROR: ", with: "")
                     .replacingOccurrences(of: #"^\[[^\]]+\] [^:]+: "#, with: "", options: .regularExpression)
-                if message.localizedCaseInsensitiveContains("cookies database")
-                    || message.localizedCaseInsensitiveContains("decrypt") {
-                    message = String(localized: "Couldn’t read this browser’s cookies. Pick another browser (or None) in Settings → Advanced.")
-                }
                 let lower = message.lowercased()
                 if lower.contains("logged-in") || lower.contains("login required") || lower.contains("log in to")
-                    || (lower.contains("--cookies") && !lower.contains("cookies database")) {
-                    message = String(localized: "This site needs you to be logged in. Log in with your browser, then choose that browser under Settings → Advanced → Use cookies from.")
+                    || lower.contains("--cookies") {
+                    message = String(localized: "This site needs you to be logged in, which Grab doesn’t support.")
                 } else if lower.contains("drm protected") {
                     message = String(localized: "This video is DRM-protected and can’t be downloaded.")
                 }

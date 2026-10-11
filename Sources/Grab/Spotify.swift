@@ -22,8 +22,7 @@ struct SpotifyTrack: Sendable, Codable {
     var duration: Double?
     var album: String?
     var cover: URL?
-    /// nil for tracks saved before Apple Music was supported, which are all Spotify.
-    var service: MusicService?
+    var service: MusicService
     /// The track's own page, when it isn't a Spotify one.
     var link: String?
     var trackNumber: Int?
@@ -33,7 +32,6 @@ struct SpotifyTrack: Sendable, Codable {
     /// Large album art to embed instead of YouTube Music's thumbnail.
     var artwork: URL?
 
-    var source: MusicService { service ?? .spotify }
     var url: String { link ?? "https://open.spotify.com/track/\(id)" }
 }
 
@@ -99,7 +97,7 @@ enum Spotify {
             let track = SpotifyTrack(
                 id: link.id, title: name, artists: artists,
                 duration: (entity["duration"] as? Double).map { $0 / 1000 },
-                album: nil, cover: cover)
+                album: nil, cover: cover, service: .spotify)
             return Collection(name: name, kind: .track, tracks: [track])
 
         case .album, .playlist:
@@ -117,7 +115,7 @@ enum Spotify {
                     duration: (t["duration"] as? Double).map { $0 / 1000 },
                     album: link.kind == .album ? name : nil,
                     // Playlist tracks come from different albums, so only albums share a cover.
-                    cover: link.kind == .album ? cover : nil)
+                    cover: link.kind == .album ? cover : nil, service: .spotify)
             }
             guard !tracks.isEmpty else { throw Failure.unreadable }
             return Collection(name: name, kind: link.kind, tracks: tracks)
@@ -181,7 +179,6 @@ enum Spotify {
             .replacingOccurrences(of: ":", with: "\\:")
     }
 }
-
 
 /// Spotify and Apple Music links behind one interface, so downloads, playlists and matching
 /// treat both the same way.

@@ -61,12 +61,6 @@ struct OpenSettingsAction {
         openWindow(id: "settings")
         NSApp.activate()
     }
-
-    /// Opens Settings on a particular tab.
-    func callAsFunction(_ tab: SettingsTab) {
-        UserDefaults.standard.set(tab.rawValue, forKey: "settingsTab")
-        callAsFunction()
-    }
 }
 
 extension EnvironmentValues {
@@ -120,9 +114,6 @@ private struct GeneralSettings: View {
     @AppStorage(Prefs.downloadPath) private var downloadPath = ""
     @AppStorage(Prefs.maxConcurrent) private var maxConcurrent = 3
     @AppStorage(Prefs.askLocation) private var askLocation = false
-    @State private var openAtLogin = LoginItem.isEnabled
-    @State private var loginNeedsApproval = LoginItem.needsApproval
-    @State private var loginError: String?
 
     var body: some View {
         Form {
@@ -144,41 +135,8 @@ private struct GeneralSettings: View {
             Picker("Simultaneous downloads", selection: $maxConcurrent) {
                 ForEach(1...6, id: \.self) { Text("\($0)").tag($0) }
             }
-            Section {
-                Toggle("Open Grab at login", isOn: $openAtLogin)
-                    .onChange(of: openAtLogin) { _, enabled in setLoginItem(enabled) }
-            } footer: {
-                Group {
-                    if loginNeedsApproval {
-                        HStack {
-                            Text("macOS needs your OK in Login Items before Grab can open at login.")
-                            Button("Open Login Items…") { LoginItem.openSystemSettings() }
-                                .buttonStyle(.link)
-                        }
-                    } else if let loginError {
-                        Text(loginError)
-                    }
-                }
-                .foregroundStyle(.secondary)
-            }
-            .onAppear {
-                openAtLogin = LoginItem.isEnabled
-                loginNeedsApproval = LoginItem.needsApproval
-            }
         }
         .formStyle(.grouped)
-    }
-
-    private func setLoginItem(_ enabled: Bool) {
-        guard enabled != LoginItem.isEnabled else { return }
-        do {
-            try LoginItem.set(enabled)
-            loginError = nil
-        } catch {
-            loginError = String(localized: "Couldn’t change the login item: \(error.localizedDescription)")
-        }
-        openAtLogin = LoginItem.isEnabled || LoginItem.needsApproval
-        loginNeedsApproval = LoginItem.needsApproval
     }
 
     private func chooseFolder() {
@@ -298,42 +256,12 @@ private struct AdvancedSettings: View {
     @Environment(DownloadManager.self) private var manager
     @Environment(Updater.self) private var updater
     @Environment(HelperToolsUpdater.self) private var toolsUpdater
-    @AppStorage(Prefs.cookiesBrowser) private var cookiesBrowser = "none"
     @AppStorage(Prefs.ytdlpPath) private var ytdlpPath = ""
     @AppStorage(Prefs.autoUpdate) private var autoUpdate = true
     @AppStorage(Prefs.nightly) private var nightly = false
 
-    private var installed: [CookieBrowser] { CookieBrowser.allCases.filter(\.isInstalled) }
-    private var notInstalled: [CookieBrowser] { CookieBrowser.allCases.filter { !$0.isInstalled } }
-
     var body: some View {
         Form {
-            Section {
-                Picker("Use cookies from", selection: $cookiesBrowser) {
-                    Text("None").tag("none")
-                    Section("Installed") {
-                        ForEach(installed) { browser in
-                            Label {
-                                Text(browser.access == .blockedByMacOS
-                                     ? String(localized: "\(browser.name) (blocked by macOS)") : browser.name)
-                            } icon: {
-                                if let url = browser.appURL {
-                                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                }
-                            }
-                            .tag(browser.rawValue)
-                        }
-                    }
-                    if !notInstalled.isEmpty {
-                        Section("Not Installed") {
-                            ForEach(notInstalled) { Text($0.name).tag($0.rawValue) }
-                        }
-                    }
-                }
-            } footer: {
-                Text(cookiesFooter).foregroundStyle(.secondary)
-            }
-
             Section {
                 Toggle("Keep yt-dlp and ffmpeg up to date automatically", isOn: $autoUpdate)
                     .onChange(of: autoUpdate) {
@@ -421,16 +349,6 @@ private struct AdvancedSettings: View {
         }
         .formStyle(.grouped)
         .onAppear { manager.refreshVersion() }
-    }
-
-    private var cookiesFooter: String {
-        if cookiesBrowser != "none", let browser = CookieBrowser(rawValue: cookiesBrowser) {
-            if !browser.isInstalled {
-                return String(localized: "That browser isn’t installed on this Mac, so cookies are skipped until you pick another.")
-            }
-            if let problem = browser.accessProblem { return problem }
-        }
-        return String(localized: "Lets yt-dlp access age-restricted or members-only videos you can already watch in that browser. With YouTube Premium, it also gets the higher-quality audio (about 256 kbps instead of 128–136).")
     }
 
     @ViewBuilder

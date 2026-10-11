@@ -208,8 +208,9 @@ enum ToolDownloads {
     }
 
     /// Downloads `url` to a temporary file; `progress` gets bytes so far and the total (0 if unknown).
-    /// `limit` caps the whole download (half an hour for the tools; longer for big models).
-    static func download(_ url: URL, limit: TimeInterval = 30 * 60, progress: @escaping @Sendable (Int64, Int64) -> Void) async throws -> URL {
+    /// The whole download is capped at half an hour.
+    static func download(_ url: URL, progress: @escaping @Sendable (Int64, Int64) -> Void) async throws -> URL {
+        let limit: TimeInterval = 30 * 60
         let resume = resumeFile(for: url)
         let saved = try? Data(contentsOf: resume)
         try? FileManager.default.removeItem(at: resume)

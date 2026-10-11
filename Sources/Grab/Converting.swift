@@ -5,8 +5,7 @@ import UniformTypeIdentifiers
 /// A file on this Mac converted with Grab's ffmpeg: drop it on the window or use File → Convert Files….
 struct Conversion: Codable, Equatable {
     enum Preset: String, Codable, CaseIterable, Identifiable {
-        /// `smaller` (720p) was replaced by `compress`; it stays so older history entries still load.
-        case audio, mp4, compress, trim, gif, smaller
+        case audio, mp4, compress, trim, gif
 
         var id: String { rawValue }
 
@@ -17,7 +16,6 @@ struct Conversion: Codable, Equatable {
             case .compress: String(localized: "Compress")
             case .trim: String(localized: "Trim")
             case .gif: String(localized: "Make GIF")
-            case .smaller: String(localized: "Make Smaller")
             }
         }
 
@@ -28,7 +26,6 @@ struct Conversion: Codable, Equatable {
             case .compress: String(localized: "Makes the file the size you choose, for sharing or mail. The resolution stays the same unless the file gets very small.")
             case .trim: String(localized: "Saves only the part you choose above, in the same quality.")
             case .gif: String(localized: "Turns the video, or the part you choose above, into an animated GIF for chats and documents.")
-            case .smaller: String(localized: "Shrinks the video to at most 720p, for sharing or mail.")
             }
         }
 
@@ -36,13 +33,13 @@ struct Conversion: Codable, Equatable {
             switch self {
             case .audio: "waveform"
             case .mp4: "film"
-            case .compress, .smaller: "arrow.down.right.and.arrow.up.left"
+            case .compress: "arrow.down.right.and.arrow.up.left"
             case .trim: "scissors"
             case .gif: "photo.on.rectangle.angled"
             }
         }
 
-        var needsVideo: Bool { self == .mp4 || self == .smaller || self == .gif }
+        var needsVideo: Bool { self == .mp4 || self == .gif }
     }
 
     var source: String
@@ -69,7 +66,6 @@ struct Conversion: Codable, Equatable {
             }
         case .trim: String(localized: "Trimmed")
         case .gif: "GIF · \(gifWidth ?? 480) px"
-        case .smaller: "MP4 · 720p"
         }
     }
 }
@@ -237,13 +233,6 @@ enum Converting {
             args += ["-movflags", "+faststart"]
             return Plan(arguments: args, fileExtension: "mp4",
                         suffix: (sourceExtension == "mp4" && suffix.isEmpty ? String(localized: " (converted)") : "") + suffix)
-        case .smaller:
-            guard info.videoCodec != nil else { throw Failure.noVideo }
-            let args = ["-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "0",
-                        "-c:v", "libx264", "-preset", "medium", "-crf", "26", "-pix_fmt", "yuv420p",
-                        "-vf", "scale=-2:'min(720,trunc(ih/2)*2)'",
-                        "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]
-            return Plan(arguments: args, fileExtension: "mp4", suffix: String(localized: " (smaller)"))
         }
     }
 
@@ -336,17 +325,6 @@ enum Converting {
         var number = 2
         while FileManager.default.fileExists(atPath: url.path) {
             url = directory.appendingPathComponent("\(name) \(number).\(fileExtension)")
-            number += 1
-        }
-        return url
-    }
-
-    /// A folder name next to nothing else: "Name", then "Name 2", and so on.
-    static func outputFolder(in parent: URL, name: String) -> URL {
-        var url = parent.appendingPathComponent(name, isDirectory: true)
-        var number = 2
-        while FileManager.default.fileExists(atPath: url.path) {
-            url = parent.appendingPathComponent("\(name) \(number)", isDirectory: true)
             number += 1
         }
         return url

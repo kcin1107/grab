@@ -31,7 +31,7 @@ final class SearchSession: Identifiable {
 
     let id = UUID()
     let query: String
-    var kind: Kind
+    let kind: Kind
     var phase: Phase = .loading
     var results: [SearchResult] = []
     /// Results added to the download list from this search.

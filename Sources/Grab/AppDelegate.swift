@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 
 /// Owns the app's long-lived state: the download queue and the yt-dlp and helper tool updaters.
 @MainActor
@@ -12,9 +11,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static var openMainWindow: (() -> Void)?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        CookieBrowser.chooseOnFirstLaunch()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { CookieBrowser.warnIfBlocked() }
-
         updater.onStatusChange = { [weak self] in self?.toolsChanged() }
         toolsUpdater.onStatusChange = { [weak self] in self?.toolsChanged() }
         updater.startAutomaticChecks()
@@ -40,23 +36,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         manager.toolsInstalling = updater.isBusy || toolsUpdater.isBusy
         manager.refreshVersion()
         manager.pump()
-    }
-}
-
-/// "Open at login", backed by the system's Login Items list.
-enum LoginItem {
-    static var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
-    static var needsApproval: Bool { SMAppService.mainApp.status == .requiresApproval }
-
-    static func set(_ enabled: Bool) throws {
-        if enabled {
-            try SMAppService.mainApp.register()
-        } else {
-            try SMAppService.mainApp.unregister()
-        }
-    }
-
-    static func openSystemSettings() {
-        SMAppService.openSystemSettingsLoginItems()
     }
 }

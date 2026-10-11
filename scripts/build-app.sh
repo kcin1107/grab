@@ -12,19 +12,17 @@ while (( $# )); do
 done
 SCRATCH=.build
 
-# Universal binary so it runs on both Apple Silicon and Intel Macs.
-MIN_MACOS=14.0
+# Apple silicon only, macOS 26 and later.
+MIN_MACOS=26.0
 SDK_VERSION="$(xcrun --show-sdk-version)"
-# The universal build otherwise stamps the binary with SDK = MIN_MACOS, and macOS then treats
-# Grab as an old app: no Liquid Glass window buttons or controls. Record the real SDK.
-FLAGS=(--arch arm64 --arch x86_64
+# SwiftPM otherwise stamps the binary with SDK = MIN_MACOS, and macOS then treats Grab as an
+# old app: no Liquid Glass window buttons or controls. Record the real SDK.
+FLAGS=(--arch arm64
        -Xlinker -platform_version -Xlinker macos -Xlinker $MIN_MACOS -Xlinker $SDK_VERSION)
 swift build -c release --scratch-path $SCRATCH $FLAGS
 BIN="$(swift build -c release --scratch-path $SCRATCH $FLAGS --show-bin-path)"
-for arch in arm64 x86_64; do
-  STAMP=$(vtool -arch $arch -show-build "$BIN/Grab" | awk '/ sdk /{print $2}')
-  [[ "$STAMP" == "$SDK_VERSION" ]] || { echo "Binary ($arch) is stamped with SDK $STAMP, expected $SDK_VERSION" >&2; exit 1; }
-done
+STAMP=$(vtool -show-build "$BIN/Grab" | awk '/ sdk /{print $2}')
+[[ "$STAMP" == "$SDK_VERSION" ]] || { echo "Binary is stamped with SDK $STAMP, expected $SDK_VERSION" >&2; exit 1; }
 
 APP=build/Grab.app
 rm -rf "$APP"
@@ -36,8 +34,8 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 xcrun xcstringstool compile Resources/Localizable.xcstrings --output-directory "$APP/Contents/Resources" >/dev/null
 mkdir -p "$APP/Contents/Resources/en.lproj"   # English is the source language; marks it as available
 
-# App icon: the Icon Composer file becomes Assets.car (Liquid Glass on macOS 26 and later) plus
-# AppIcon.icns (the flat fallback for macOS 14–15). Absolute paths: actool's helper process can
+# App icon: the Icon Composer file becomes Assets.car (the Liquid Glass icon) plus
+# AppIcon.icns (the flat fallback actool also emits). Absolute paths: actool's helper process can
 # outlive a run and resolve relative paths against the folder it was first started in.
 xcrun actool "$PWD/Resources/AppIcon.icon" --compile "$PWD/$APP/Contents/Resources" --app-icon AppIcon \
   --platform macosx --minimum-deployment-target $MIN_MACOS \

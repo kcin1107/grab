@@ -33,11 +33,7 @@ final class HelperToolsUpdater {
     /// Developer ID teams that sign each tool; anything else is rejected.
     private static let signingTeams = ["ffmpeg": "KU3N25YGLU", "ffprobe": "KU3N25YGLU", "deno": "2H4KBF436B"]
 
-    #if arch(arm64)
     private static let ffmpegArch = "arm64", denoTarget = "aarch64-apple-darwin"
-    #else
-    private static let ffmpegArch = "amd64", denoTarget = "x86_64-apple-darwin"
-    #endif
 
     init() {
         ffmpegVersion = UserDefaults.standard.string(forKey: "ffmpegVersion")

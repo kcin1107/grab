@@ -9,10 +9,8 @@ struct ContentView: View {
     @Environment(Updater.self) private var updater
     @AppStorage(Prefs.downloadPath) private var downloadPath = ""
     @State private var urlText = ""
-    /// Selected rows: click selects one, ⌘-click adds or removes, ⇧-click selects a range.
-    @State private var selection: Set<DownloadItem.ID> = []
-    /// The row clicked last, where ⇧-click ranges and the arrow keys start from.
-    @State private var anchor: DownloadItem.ID?
+    /// The selected row: where the arrow keys start from.
+    @State private var selectedID: DownloadItem.ID?
     @State private var shownPickID: PlaylistPick.ID?
     @State private var clipping = false
     @State private var clipStart = ""
@@ -41,7 +39,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
             if manager.ffmpegMissing || manager.executableURL == nil {
-                if updater.isBusy || toolsUpdater.isBusy || manager.toolsInstalling {
+                if manager.toolsInstalling {
                     setupBanner
                 } else {
                     toolsBanner
@@ -148,7 +146,7 @@ struct ContentView: View {
             Spacer()
         }
         .padding(12)
-        .glassBackground(in: .rect(cornerRadius: Design.Radius.card))
+        .glassEffect(in: .rect(cornerRadius: Design.Radius.card))
         .padding(.horizontal, 20)
         .padding(.top, 12)
     }
@@ -177,18 +175,18 @@ struct ContentView: View {
                     Task { await updater.check(force: ytdlpMissing) }
                     Task { await toolsUpdater.check(force: manager.ffmpegMissing) }
                 }
-                .glassButtonStyle()
+                .buttonStyle(.glass)
             } else {
                 Button("Copy Install Command") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(ytdlpMissing ? "brew install yt-dlp ffmpeg" : "brew install ffmpeg", forType: .string)
                 }
-                .glassButtonStyle()
+                .buttonStyle(.glass)
                 .help("Needs Homebrew from brew.sh")
             }
         }
         .padding(12)
-        .glassBackground(in: .rect(cornerRadius: Design.Radius.card), tint: .orange.opacity(0.15))
+        .glassEffect(.regular.tint(.orange.opacity(0.15)), in: .rect(cornerRadius: Design.Radius.card))
         .padding(.horizontal, 20)
         .padding(.top, 12)
     }
@@ -196,7 +194,7 @@ struct ContentView: View {
     // MARK: - Input
 
     private var inputBar: some View {
-        GlassGroup(spacing: Design.Spacing.controls) {
+        GlassEffectContainer(spacing: Design.Spacing.controls) {
             HStack(spacing: Design.Spacing.controls) {
                 HStack(spacing: Design.Spacing.controls) {
                     Image(systemName: "link")
@@ -300,7 +298,7 @@ struct ContentView: View {
         .textFieldStyle(.roundedBorder)
         .padding(.horizontal, Design.Spacing.inset)
         .frame(height: Design.Size.control)
-        .glassBackground(in: .capsule)
+        .glassEffect(in: .capsule)
         .onSubmit(submit)
     }
 
@@ -351,7 +349,7 @@ struct ContentView: View {
             LazyVStack(spacing: 10) {
                 ForEach(manager.items) { item in
                     DownloadRow(item: item,
-                                isSelected: selection.contains(item.id),
+                                isSelected: selectedID == item.id,
                                 onSelect: { select(item.id) },
                                 onQuickLook: { quickLook(item) })
                         .transition(.asymmetric(
@@ -364,7 +362,7 @@ struct ContentView: View {
             .padding(.bottom, 20)
             .animation(.smooth, value: manager.items.map(\.id))
         }
-        .softTopScrollEdge()
+        .scrollEdgeEffectStyle(.soft, for: .top)
         // Click a row to select it; Space opens Quick Look, ↑/↓ move the selection.
         .focusable()
         .focused($listFocused)
@@ -380,21 +378,11 @@ struct ContentView: View {
     }
 
     private var selectedItem: DownloadItem? {
-        manager.items.first { $0.id == anchor }
+        manager.items.first { $0.id == selectedID }
     }
 
     private func select(_ id: DownloadItem.ID) {
-        let modifiers = NSApp.currentEvent?.modifierFlags ?? []
-        if modifiers.contains(.command) {
-            if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
-        } else if modifiers.contains(.shift), let anchor,
-                  let from = manager.items.firstIndex(where: { $0.id == anchor }),
-                  let to = manager.items.firstIndex(where: { $0.id == id }) {
-            selection = Set(manager.items[min(from, to)...max(from, to)].map(\.id))
-        } else {
-            selection = [id]
-        }
-        anchor = id
+        selectedID = id
         fieldFocused = false
         listFocused = true
     }
@@ -408,10 +396,9 @@ struct ContentView: View {
     private func moveSelection(by offset: Int) -> KeyPress.Result {
         let ids = manager.items.map(\.id)
         guard !ids.isEmpty else { return .ignored }
-        let current = anchor.flatMap { ids.firstIndex(of: $0) } ?? (offset > 0 ? -1 : ids.count)
+        let current = selectedID.flatMap { ids.firstIndex(of: $0) } ?? (offset > 0 ? -1 : ids.count)
         let next = min(max(current + offset, 0), ids.count - 1)
-        selection = [ids[next]]
-        anchor = ids[next]
+        selectedID = ids[next]
         if previewURL != nil { previewURL = manager.items[next].existingFile }
         return .handled
     }
@@ -425,10 +412,10 @@ struct ContentView: View {
             let copied = Links.extract(from: NSPasteboard.general)
             if copied.count > 1 {
                 Button("Download \(copied.count) Links from Clipboard") { manager.add(copied) }
-                    .glassButtonStyle()
+                    .buttonStyle(.glass)
             } else if let link = Clipboard.videoURL() {
                 Button("Download from Clipboard") { manager.add(link) }
-                    .glassButtonStyle()
+                    .buttonStyle(.glass)
                     .help(link)
             }
         }

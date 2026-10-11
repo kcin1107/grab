@@ -1,7 +1,7 @@
 import AppKit
 
 enum Links {
-    /// Accepts web links and Spotify links only.
+    /// Accepts web links and Spotify and Apple Music links only.
     static func validated(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if MusicLinks.parse(trimmed) != nil { return trimmed }
@@ -20,7 +20,7 @@ enum Links {
         return found
     }
 
-    /// Every distinct web or Spotify link in a piece of text, in order: one per line, separated by
+    /// Every distinct web, Spotify or Apple Music link in a piece of text, in order: one per line, separated by
     /// spaces, or mixed in with other words.
     static func extract(fromText text: String) -> [String] {
         var found: [String] = []

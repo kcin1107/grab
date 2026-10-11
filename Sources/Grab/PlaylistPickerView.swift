@@ -123,7 +123,7 @@ struct PlaylistPickerView: View {
             } else {
                 FormatMenu()
                     .controlSize(.large)
-                    .glassButtonStyle()
+                    .buttonStyle(.glass)
                     .focusEffectDisabled()
             }
             Spacer()
@@ -132,7 +132,7 @@ struct PlaylistPickerView: View {
                 .keyboardShortcut(.cancelAction)
             Button(downloadTitle) { manager.confirm(pick) }
                 .controlSize(.large)
-                .glassProminentButtonStyle()
+                .buttonStyle(.glassProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(pick.phase != .ready || pick.selected.isEmpty)
         }

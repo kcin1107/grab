@@ -24,7 +24,7 @@ final class PlaylistPick: Identifiable {
     let id = UUID()
     let sourceURL: String
     let folder: String
-    var options: DownloadOptions
+    let options: DownloadOptions
 
     var phase: Phase = .loading
     var title = String(localized: "Playlist")

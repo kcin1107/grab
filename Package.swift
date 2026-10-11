@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Grab",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v26)],
     targets: [
         .executableTarget(
             name: "Grab",
