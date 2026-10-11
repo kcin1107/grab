@@ -5,6 +5,7 @@ import SwiftUI
 struct ConvertSheet: View {
     @Environment(DownloadManager.self) private var manager
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(Prefs.audioFormat) private var audioFormat: AudioFormat = .m4a
     @AppStorage("compressPercent") private var percent = 50
     @AppStorage("gifWidth") private var gifWidth = 480
@@ -173,8 +174,8 @@ struct ConvertSheet: View {
                 HStack(spacing: 10) {
                     Slider(value: Binding(get: { Double(percent) }, set: { percent = Int($0) }), in: 10...90, step: 5)
                         .frame(width: 200)
-                        .accessibilityValue("\(percent)%")
-                    Text("\(percent)%")
+                        .accessibilityValue(Text(Double(percent) / 100, format: .percent))
+                    Text(Double(percent) / 100, format: .percent)
                         .monospacedDigit()
                         .frame(width: 40, alignment: .trailing)
                 }
@@ -247,7 +248,7 @@ struct ConvertSheet: View {
                         .foregroundStyle(.orange)
                 }
             }
-            .animation(.snappy, value: percent)
+            .animation(reduceMotion ? nil : .snappy, value: percent)
         }
     }
 
