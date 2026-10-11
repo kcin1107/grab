@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 
@@ -110,7 +109,6 @@ extension DownloadManager {
     func presentPicker(for url: String, options: DownloadOptions, folder: String) {
         let pick = PlaylistPick(sourceURL: url, folder: folder, options: options)
         picks.append(pick)
-        AppDelegate.openMainWindow?()
         Task { await load(pick) }
     }
 

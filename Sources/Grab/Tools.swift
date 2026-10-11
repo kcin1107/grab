@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Where Grab's command-line tools live, and how to run them.
 @MainActor
@@ -62,24 +63,29 @@ enum Tools {
 
     /// Collects a process's output and exit without blocking a thread: the pipe is read as data
     /// arrives, and the result is delivered once the process has exited and the pipe has closed.
-    private final class Collector: @unchecked Sendable {
-        private let lock = NSLock()
-        private var data = Data()
-        private var pending = 2
-        private var status: Int32 = 0
-        private var timedOut = false
-        var finish: ((Output) -> Void)?
+    private final class Collector: Sendable {
+        private struct State {
+            var data = Data()
+            var pending = 2
+            var status: Int32 = 0
+            var timedOut = false
+        }
 
-        func append(_ chunk: Data) { lock.lock(); data.append(chunk); lock.unlock() }
-        func markTimedOut() { lock.lock(); timedOut = true; lock.unlock() }
+        private let state = Mutex(State())
+        private let finish: @Sendable (Output) -> Void
+
+        init(finish: @escaping @Sendable (Output) -> Void) { self.finish = finish }
+
+        func append(_ chunk: Data) { state.withLock { $0.data.append(chunk) } }
+        func markTimedOut() { state.withLock { $0.timedOut = true } }
 
         func part(done status: Int32? = nil) {
-            lock.lock()
-            if let status { self.status = status }
-            pending -= 1
-            let result = pending == 0 ? Output(status: self.status, stdout: data, timedOut: timedOut) : nil
-            lock.unlock()
-            if let result { finish?(result) }
+            let result = state.withLock { state -> Output? in
+                if let status { state.status = status }
+                state.pending -= 1
+                return state.pending == 0 ? Output(status: state.status, stdout: state.data, timedOut: state.timedOut) : nil
+            }
+            if let result { finish(result) }
         }
     }
 
@@ -95,20 +101,19 @@ enum Tools {
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
-        let collector = Collector()
-        pipe.fileHandleForReading.readabilityHandler = { handle in
-            let chunk = handle.availableData
-            if chunk.isEmpty {
-                handle.readabilityHandler = nil
-                collector.part()
-            } else {
-                collector.append(chunk)
-            }
-        }
-        process.terminationHandler = { collector.part(done: $0.terminationStatus) }
         var timer: Task<Void, Never>?
-        return await withCheckedContinuation { continuation in
-            collector.finish = { timer?.cancel(); continuation.resume(returning: $0) }
+        let output = await withCheckedContinuation { (continuation: CheckedContinuation<Output?, Never>) in
+            let collector = Collector { continuation.resume(returning: $0) }
+            pipe.fileHandleForReading.readabilityHandler = { handle in
+                let chunk = handle.availableData
+                if chunk.isEmpty {
+                    handle.readabilityHandler = nil
+                    collector.part()
+                } else {
+                    collector.append(chunk)
+                }
+            }
+            process.terminationHandler = { collector.part(done: $0.terminationStatus) }
             do {
                 try process.run()
             } catch {
@@ -127,6 +132,8 @@ enum Tools {
                 }
             }
         }
+        timer?.cancel()
+        return output
     }
 
     /// A way to wait for a process's exit status, without blocking. Call before `run()`.
@@ -141,7 +148,7 @@ enum Tools {
 /// reading at once (yt-dlp's stdout and stderr) block each other, so progress only reached the
 /// app when yt-dlp exited. `readabilityHandler` reads each pipe independently.
 enum PipeLines {
-    private final class Buffer: @unchecked Sendable { var data = Data() }
+    private final class Buffer: Sendable { let data = Mutex(Data()) }
 
     static func stream(_ handle: FileHandle) -> AsyncStream<String> {
         AsyncStream { continuation in
@@ -149,18 +156,24 @@ enum PipeLines {
             handle.readabilityHandler = { handle in
                 let chunk = handle.availableData
                 guard !chunk.isEmpty else {
-                    if !buffer.data.isEmpty { continuation.yield(String(decoding: buffer.data, as: UTF8.self)) }
+                    let rest = buffer.data.withLock { $0 }
+                    if !rest.isEmpty { continuation.yield(String(decoding: rest, as: UTF8.self)) }
                     handle.readabilityHandler = nil
                     continuation.finish()
                     return
                 }
-                buffer.data.append(chunk)
-                while let newline = buffer.data.firstIndex(of: 0x0A) {
-                    var line = buffer.data[buffer.data.startIndex..<newline]
-                    if line.last == 0x0D { line = line.dropLast() }
-                    continuation.yield(String(decoding: line, as: UTF8.self))
-                    buffer.data.removeSubrange(buffer.data.startIndex...newline)
+                let lines = buffer.data.withLock { data -> [String] in
+                    data.append(chunk)
+                    var lines: [String] = []
+                    while let newline = data.firstIndex(of: 0x0A) {
+                        var line = data[data.startIndex..<newline]
+                        if line.last == 0x0D { line = line.dropLast() }
+                        lines.append(String(decoding: line, as: UTF8.self))
+                        data.removeSubrange(data.startIndex...newline)
+                    }
+                    return lines
                 }
+                for line in lines { continuation.yield(line) }
             }
         }
     }

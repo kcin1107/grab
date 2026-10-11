@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
 
@@ -324,14 +325,14 @@ enum Converting {
     static func thumbnail(for file: URL) async -> URL? {
         let request = QLThumbnailGenerator.Request(fileAt: file, size: CGSize(width: 256, height: 144),
                                                    scale: 2, representationTypes: .thumbnail)
-        guard let image = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request).nsImage,
-              let tiff = image.tiffRepresentation,
-              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return nil }
+        guard let image = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request).cgImage else { return nil }
         let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Grab/Thumbnails", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent("\(UUID().uuidString).png")
-        return (try? png.write(to: url)) != nil ? url : nil
+        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination) ? url : nil
     }
 }
 
@@ -344,10 +345,9 @@ extension DownloadManager {
         panel.allowsMultipleSelection = true
         panel.prompt = String(localized: "Choose")
         panel.message = String(localized: "Choose videos or songs to convert.")
-        NSApp.activate()
+        MacPlatform.activate()
         guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
         openConverter(for: panel.urls)
-        AppDelegate.openMainWindow?()
     }
 
     /// Videos and songs open the convert sheet.
