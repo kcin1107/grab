@@ -149,10 +149,11 @@ extension DownloadManager {
     func download(_ result: SearchResult, from session: SearchSession) {
         var options = DownloadOptions.current
         if session.kind == .music { options.kind = .audio }
-        guard let folder = destinationFolder(count: 1) else { return }
-        items.insert(item(url: result.url, options: options, folder: folder, title: result.title,
-                          uploader: result.subtitle, duration: result.duration, thumbnail: result.thumbnail), at: 0)
-        session.added.insert(result.id)
-        pump()
+        withDestination(count: 1) { [self] folder in
+            items.insert(item(url: result.url, options: options, folder: folder, title: result.title,
+                              uploader: result.subtitle, duration: result.duration, thumbnail: result.thumbnail), at: 0)
+            session.added.insert(result.id)
+            pump()
+        }
     }
 }

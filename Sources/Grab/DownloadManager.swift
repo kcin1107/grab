@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Network
 import Observation
@@ -82,7 +81,13 @@ final class DownloadManager {
 
     /// Adds downloads for one or more links. When "Ask where to save" is on, asks once for the batch.
     func add(_ urls: [String], options: DownloadOptions = .current, folder override: String? = nil, clip: ClipRange? = nil) {
-        guard !urls.isEmpty, let folder = override ?? destinationFolder(count: urls.count) else { return }
+        guard !urls.isEmpty else { return }
+        guard let folder = override else {
+            withDestination(count: urls.count) { [weak self] folder in
+                self?.add(urls, options: options, folder: folder, clip: clip)
+            }
+            return
+        }
         for url in urls {
             if Playlists.looksLikePlaylist(url) {
                 presentPicker(for: url, options: options, folder: folder)
@@ -119,21 +124,24 @@ final class DownloadManager {
         add([url], options: options, folder: folder, clip: clip)
     }
 
-    /// The Downloads setting, or a folder the user picks when "Always ask where to save" is on.
-    func destinationFolder(count: Int) -> String? {
+    /// Runs `start` with the Downloads setting, or, when "Always ask where to save" is on, with the folder the
+    /// user picks. The model never shows the dialog: it publishes `fileRequest`, the window presents it and
+    /// calls `start` with the folder (or drops it if the user cancels). One request covers a whole batch.
+    func withDestination(count: Int, _ start: @escaping @MainActor (String) -> Void) {
         let folder = defaults.string(forKey: Prefs.downloadPath) ?? NSHomeDirectory()
-        return defaults.bool(forKey: Prefs.askLocation) ? askForFolder(starting: folder, count: count) : folder
+        if defaults.bool(forKey: Prefs.askLocation) {
+            fileRequest = .saveFolder(PendingAdd(count: count, startingFolder: folder, start: start))
+        } else {
+            start(folder)
+        }
     }
 
-    /// File → Download Links from File…: every link in a text file.
-    func chooseLinkFile() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.text]
-        panel.allowsMultipleSelection = true
-        panel.message = String(localized: "Choose a text file with links, one per line or mixed with other text.")
-        MacPlatform.activate()
-        guard panel.runModal() == .OK else { return }
-        let links = panel.urls.flatMap(Links.extract(fromFile:))
+    /// The file or folder dialog the window should show, if any (see `FileRequestImporter`).
+    var fileRequest: FileRequest?
+
+    /// File → Download Links from File…: every link in the text files the user chose.
+    func addLinks(fromFiles urls: [URL]) {
+        let links = urls.flatMap(Links.extract(fromFile:))
         guard !links.isEmpty else { MacPlatform.beep(); return }
         add(links)
     }
@@ -143,18 +151,6 @@ final class DownloadManager {
     /// Files dropped on the window (or chosen in File → Convert Files…), waiting for the user to
     /// pick what to turn them into.
     var filesToConvert: [URL] = []
-
-    private func askForFolder(starting path: String, count: Int) -> String? {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.directoryURL = URL(fileURLWithPath: path)
-        panel.prompt = String(localized: "Download Here")
-        panel.message = count == 1 ? String(localized: "Choose where to save this download.") : String(localized: "Choose where to save these \(count) downloads.")
-        MacPlatform.activate()
-        return panel.runModal() == .OK ? panel.url?.path : nil
-    }
 
     // MARK: - Search
 

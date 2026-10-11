@@ -1,4 +1,3 @@
-import AppKit
 import ImageIO
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
@@ -339,17 +338,6 @@ enum Converting {
 extension DownloadManager {
     // MARK: - Converting files on this Mac
 
-    func chooseFilesToConvert() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.audiovisualContent]
-        panel.allowsMultipleSelection = true
-        panel.prompt = String(localized: "Choose")
-        panel.message = String(localized: "Choose videos or songs to convert.")
-        MacPlatform.activate()
-        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
-        openConverter(for: panel.urls)
-    }
-
     /// Videos and songs open the convert sheet.
     func openConverter(for files: [URL]) {
         filesToConvert = files.filter(Converting.isMedia)
@@ -357,7 +345,15 @@ extension DownloadManager {
 
     func convert(_ files: [URL], preset: Conversion.Preset, percent: Int? = nil, resolution: Int? = nil,
                  clip: ClipRange? = nil, gifWidth: Int? = nil) {
-        guard !files.isEmpty, let folder = destinationFolder(count: files.count) else { return }
+        guard !files.isEmpty else { return }
+        withDestination(count: files.count) { [self] folder in
+            addConversions(of: files, to: folder, preset: preset, percent: percent, resolution: resolution,
+                           clip: clip, gifWidth: gifWidth)
+        }
+    }
+
+    private func addConversions(of files: [URL], to folder: String, preset: Conversion.Preset, percent: Int?,
+                                resolution: Int?, clip: ClipRange?, gifWidth: Int?) {
         let format = DownloadOptions.current
         for file in files {
             var options = DownloadOptions()
