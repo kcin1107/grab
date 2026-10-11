@@ -188,6 +188,8 @@ final class HelperToolsUpdater {
             Task { @MainActor [weak self] in self?.progress = (tool, done, total) }
         }
 
+        defer { try? FileManager.default.removeItem(at: zipFile) }
+
         let expected = String(decoding: sumData, as: UTF8.self)
             .split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
         let actual = SHA256.hash(data: try Data(contentsOf: zipFile, options: .mappedIfSafe))

@@ -323,12 +323,12 @@ struct DownloadRow: View {
     }
 
     private func open() {
-        guard let file = item.existingFile else { return }
+        guard let file = item.existingFile, DownloadManager.isInside(file, folder: item.folder) else { return }
         NSWorkspace.shared.open(file)
     }
 
     private func reveal() {
-        guard let file = item.existingFile else { return }
+        guard let file = item.existingFile, DownloadManager.isInside(file, folder: item.folder) else { return }
         NSWorkspace.shared.activateFileViewerSelecting([file])
     }
 }

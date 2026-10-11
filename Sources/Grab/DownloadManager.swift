@@ -150,6 +150,10 @@ final class DownloadManager {
         }
     }
 
+    /// Options that stop yt-dlp loading configuration files or plugins found on disk (a
+    /// yt-dlp.conf in the download folder would otherwise be read, and could add --exec).
+    nonisolated private static let isolation = ["--ignore-config", "--no-plugin-dirs"]
+
     /// Runs yt-dlp to completion and returns stdout, or nil if it couldn't run or failed.
     private func capture(_ arguments: [String]) async -> Data? {
         guard let exe = executableURL else { return nil }
@@ -157,7 +161,7 @@ final class DownloadManager {
         return await Task.detached {
             let p = Process()
             p.executableURL = exe
-            p.arguments = arguments
+            p.arguments = Self.isolation + arguments
             p.environment = env
             let pipe = Pipe()
             p.standardOutput = pipe
@@ -726,7 +730,7 @@ final class DownloadManager {
 
     private func arguments(for item: DownloadItem, url: String) -> [String] {
         let options = item.options
-        var args = [
+        var args = Self.isolation + [
             "--newline", "--progress", "--no-simulate",
             "--socket-timeout", "20", "--retries", "10", "--fragment-retries", "10",
             "--progress-template",
@@ -934,8 +938,20 @@ final class DownloadManager {
             item.uploader = (meta["uploader"] as? String) ?? (meta["channel"] as? String)
             item.duration = meta["duration"] as? Double
         } else if line.hasPrefix("GRABFILE ") {
-            item.fileURL = Self.tidiedName(URL(fileURLWithPath: String(line.dropFirst("GRABFILE ".count))))
+            let file = URL(fileURLWithPath: String(line.dropFirst("GRABFILE ".count)))
+            if Self.isInside(file, folder: item.folder) { item.fileURL = Self.tidiedName(file) }
+        } else if line.hasPrefix("[SplitChapters] Chapter "), let range = line.range(of: "; Destination: ") {
+            // "[SplitChapters] Chapter 001; Destination: <path>": one line per chapter file written.
+            item.chapterFiles.append(URL(fileURLWithPath: String(line[range.upperBound...])))
         }
+    }
+
+    /// Whether a path (read from yt-dlp's output) is inside a folder, once both are standardized
+    /// and their symlinks resolved. Anything outside is never touched.
+    nonisolated static func isInside(_ url: URL, folder: String) -> Bool {
+        let root = URL(fileURLWithPath: folder).standardizedFileURL.resolvingSymlinksInPath().path
+        let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+        return path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
     }
 
     /// A title ending in a full stop gives "Title..mp4": drop the stray dots (and spaces) before
@@ -1083,7 +1099,7 @@ final class DownloadManager {
 
     /// Swaps YouTube Music's thumbnail for the service's album art (streams copied as-is).
     private func embed(_ artwork: URL, into item: DownloadItem) async {
-        guard let file = item.fileURL, let ffmpeg = tool("ffmpeg"),
+        guard let file = item.fileURL, Self.isInside(file, folder: item.folder), let ffmpeg = tool("ffmpeg"),
               let (data, response) = try? await URLSession.shared.data(from: artwork),
               (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else { return }
         let folder = file.deletingLastPathComponent()
@@ -1119,14 +1135,15 @@ final class DownloadManager {
 
     /// After `--split-chapters`: each chapter file gets its chapter as title, a track number and
     /// the video as album (yt-dlp copies the whole video's tags into every piece). The full-length
-    /// file is removed and the row points at the folder. Videos without chapters are left alone.
+    /// file is removed and the row points at the folder. Videos without chapters are left alone,
+    /// and so is anything yt-dlp didn't report writing in this run.
     private func tagChapters(of item: DownloadItem) async {
-        guard let file = item.fileURL, let ffmpeg = tool("ffmpeg") else { return }
-        let folder = file.deletingPathExtension()
-        let pieces = ((try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [])
-            .filter { !$0.lastPathComponent.hasPrefix(".") }
+        guard let file = item.fileURL, Self.isInside(file, folder: item.folder), let ffmpeg = tool("ffmpeg") else { return }
+        let pieces = item.chapterFiles
+            .filter { Self.isInside($0, folder: item.folder) && FileManager.default.fileExists(atPath: $0.path) }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-        guard !pieces.isEmpty else { return }
+        guard let first = pieces.first else { return }
+        let folder = first.deletingLastPathComponent()
         let album = item.title
         let env = environment
         await Task.detached {

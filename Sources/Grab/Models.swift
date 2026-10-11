@@ -209,6 +209,8 @@ final class DownloadItem: Identifiable {
     var splitChapters = UserDefaults.standard.bool(forKey: Prefs.splitChapters)
     /// How many files a chapter split produced, once it's done.
     var chapterCount: Int?
+    /// The chapter files yt-dlp reported writing in this run; only these are tagged afterwards.
+    @ObservationIgnored var chapterFiles: [URL] = []
     /// Set for a file on this Mac being converted with ffmpeg rather than downloaded.
     var conversion: Conversion?
     /// Automatic retries after connection problems, and when the next one may start.
@@ -277,6 +279,7 @@ final class DownloadItem: Identifiable {
         fileSize = nil
         errorMessage = nil
         chapterCount = nil
+        chapterFiles = []
         hasArtwork = false
     }
 }

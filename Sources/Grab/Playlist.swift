@@ -63,10 +63,10 @@ enum Playlists {
         guard let url = URL(string: link), let host = url.host?.lowercased() else { return false }
         let path = url.path.lowercased()
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        if host.hasSuffix("youtube.com") || host == "youtu.be" {
+        if host == "youtube.com" || host.hasSuffix(".youtube.com") || host == "youtu.be" {
             return path.hasPrefix("/playlist") || items.contains { $0.name == "list" && !($0.value ?? "").isEmpty }
         }
-        if host.hasSuffix("soundcloud.com") { return path.contains("/sets/") }
+        if host == "soundcloud.com" || host.hasSuffix(".soundcloud.com") { return path.contains("/sets/") }
         return false
     }
 

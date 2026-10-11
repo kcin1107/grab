@@ -69,14 +69,20 @@ enum Spotify {
             guard parts.count == 3, let kind = Kind(rawValue: String(parts[1])) else { return nil }
             return Link(kind: kind, id: String(parts[2]))
         }
-        guard let url = URL(string: string), url.host?.hasSuffix("spotify.com") == true else { return nil }
+        guard let url = URL(string: string), Self.isSpotifyHost(url.host) else { return nil }
         let parts = url.pathComponents.filter { $0 != "/" && !$0.hasPrefix("intl-") && $0 != "embed" }
         guard parts.count >= 2, let kind = Kind(rawValue: parts[0]) else { return nil }
         return Link(kind: kind, id: parts[1])
     }
 
     static func isSpotify(_ string: String) -> Bool {
-        string.hasPrefix("spotify:") || URL(string: string)?.host?.hasSuffix("spotify.com") == true
+        string.hasPrefix("spotify:") || Self.isSpotifyHost(URL(string: string)?.host)
+    }
+
+    /// spotify.com itself or one of its subdomains, not a lookalike such as evilspotify.com.
+    private static func isSpotifyHost(_ host: String?) -> Bool {
+        guard let host = host?.lowercased() else { return false }
+        return host == "spotify.com" || host.hasSuffix(".spotify.com")
     }
 
     static func fetch(_ link: Link) async throws -> Collection {

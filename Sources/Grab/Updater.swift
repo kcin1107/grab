@@ -151,6 +151,8 @@ final class Updater {
             Task { @MainActor [weak self] in self?.progress = (done, total) }
         }
 
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
         // SHA2-256SUMS lines look like "<hex>  yt-dlp_macos".
         let expected = String(decoding: sumsData, as: UTF8.self)
             .split(separator: "\n")
@@ -160,10 +162,7 @@ final class Updater {
 
         let digest = SHA256.hash(data: try Data(contentsOf: tempFile, options: .mappedIfSafe))
         let actual = digest.map { String(format: "%02x", $0) }.joined()
-        guard actual == expected.lowercased() else {
-            try? FileManager.default.removeItem(at: tempFile)
-            throw Failure.checksumMismatch
-        }
+        guard actual == expected.lowercased() else { throw Failure.checksumMismatch }
 
         let fm = FileManager.default
         try fm.createDirectory(at: Self.directory, withIntermediateDirectories: true)
@@ -172,7 +171,7 @@ final class Updater {
         try fm.moveItem(at: tempFile, to: staged)
         try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: staged.path)
 
-        guard try await ToolDownloads.runs(staged.path, ["--version"], name: "yt-dlp") else {
+        guard try await ToolDownloads.runs(staged.path, ["--ignore-config", "--no-plugin-dirs", "--version"], name: "yt-dlp") else {
             try? fm.removeItem(at: staged)
             throw Failure.badBinary
         }
