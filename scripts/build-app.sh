@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Builds Grab.app into ./build. Pass --install to copy it to /Applications.
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "${0:A:h:h}"
 
 INSTALL=""
 while (( $# )); do
@@ -36,11 +36,13 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 xcrun xcstringstool compile Resources/Localizable.xcstrings --output-directory "$APP/Contents/Resources" >/dev/null
 mkdir -p "$APP/Contents/Resources/en.lproj"   # English is the source language; marks it as available
 
-ICONSET=build/AppIcon.iconset
-rm -rf "$ICONSET"
-swift scripts/make-icon.swift "$ICONSET"
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
-rm -rf "$ICONSET"
+# App icon: the Icon Composer file becomes Assets.car (Liquid Glass on macOS 26 and later) plus
+# AppIcon.icns (the flat fallback for macOS 14–15). Absolute paths: actool's helper process can
+# outlive a run and resolve relative paths against the folder it was first started in.
+xcrun actool "$PWD/Resources/AppIcon.icon" --compile "$PWD/$APP/Contents/Resources" --app-icon AppIcon \
+  --platform macosx --minimum-deployment-target $MIN_MACOS \
+  --output-partial-info-plist "$PWD/build/AppIcon-partial.plist" >/dev/null
+rm -f build/AppIcon-partial.plist
 
 # Hardened runtime: blocks code injection (DYLD_* variables, unsigned libraries) into Grab.
 codesign --force --options runtime --sign - "$APP"
