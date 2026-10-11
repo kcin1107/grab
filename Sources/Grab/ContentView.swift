@@ -63,6 +63,13 @@ struct ContentView: View {
         // ⌘V with the list focused (the link field handles its own paste).
         .onPasteCommand(of: [.url, .plainText]) { _ in pasteFromClipboard() }
         .onAppear { fieldFocused = true }
+        // Dialogs asked for by menu commands and models; with a sheet open, the dialog waits for it to close
+        // (the search sheet hosts its own, above).
+        .fileRequestImporter(manager, isActive: manager.picks.isEmpty && manager.search == nil && manager.filesToConvert.isEmpty)
+        // Rows that were removed or cleared are no longer selected.
+        .onChange(of: manager.items.map(\.id)) { _, ids in
+            selection.formIntersection(ids)
+        }
         // Tools installed, or downloads moved or deleted, while Grab was in the background.
         .onChange(of: appearsActive) { if appearsActive { manager.refreshFromDisk() } }
         .alert(duplicateTitle, isPresented: Binding(
@@ -79,6 +86,8 @@ struct ContentView: View {
                              set: { if $0 == nil { manager.search = nil } })) { session in
             SearchResultsView(session: session)
                 .environment(manager)
+                // The sheet stays open while results are added, so "Ask where to save" shows its dialog here.
+                .fileRequestImporter(manager, isActive: manager.picks.isEmpty)
         }
         .sheet(isPresented: Binding(get: { !manager.filesToConvert.isEmpty && manager.picks.isEmpty },
                                     set: { if !$0 { manager.filesToConvert = [] } })) {
