@@ -5,9 +5,14 @@ struct ClipRange: Codable, Equatable {
     var start: Double
     var end: Double?
 
-    /// "0:05–1:30" or "0:05–end".
+    /// "0:05–1:30" or "0:05–end". Used in file names, so it is never localized.
     var label: String {
         "\(Format.duration(start))–\(end.map(Format.duration) ?? "end")"
+    }
+
+    /// Like `label`, but with a localized "end", for showing to people.
+    var displayLabel: String {
+        "\(Format.duration(start))–\(end.map(Format.duration) ?? String(localized: "End"))"
     }
 
     /// yt-dlp's --download-sections value, e.g. "*5-90".
@@ -73,7 +78,7 @@ struct ClipRangeFields: View {
                 .frame(width: fieldWidth)
                 .accessibilityLabel("Clip start")
             Text("to")
-            TextField("end", text: $end)
+            TextField("End", text: $end)
                 .frame(width: fieldWidth)
                 .accessibilityLabel("Clip end")
             Group {

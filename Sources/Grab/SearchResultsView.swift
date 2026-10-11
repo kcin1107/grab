@@ -123,7 +123,7 @@ private struct SearchResultRow: View {
             }
             .frame(width: isMusic ? 44 : 78, height: 44)
             .background(.fill.tertiary)
-            .clipShape(.rect(cornerRadius: Design.Radius.small, style: .continuous))
+            .clipShape(.rect(cornerRadius: 6, style: .continuous))
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
