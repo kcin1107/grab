@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 /// The rows selected in the download list, and what can be done to them. Published with
@@ -34,7 +33,7 @@ struct DownloadSelection {
         item.fileMissing || item.state == .failed || item.state == .cancelled
     }
 
-    func open() { files.forEach { NSWorkspace.shared.open($0) } }
+    func open() { files.forEach { MacPlatform.open($0) } }
     func reveal() { MacPlatform.reveal(files) }
     func pause() { items.forEach { manager.pause($0) } }
     func resume() { items.forEach { manager.resume($0) } }
@@ -44,7 +43,7 @@ struct DownloadSelection {
         MacPlatform.copy(items.filter { $0.conversion == nil }.map(\.url).joined(separator: "\n"))
     }
     func openLink() {
-        if let url = single.flatMap({ URL(string: $0.url) }) { NSWorkspace.shared.open(url) }
+        if let url = single.flatMap({ URL(string: $0.url) }) { MacPlatform.open(url) }
     }
     func revealOriginal() { originalFile.map { MacPlatform.reveal([$0]) } }
     func remove() { withAnimation { items.forEach { manager.remove($0) } } }
