@@ -25,8 +25,8 @@ struct Conversion: Codable, Equatable {
             case .audio: String(localized: "Saves the sound as an audio file in the format below. Audio that’s already in that format is copied without quality loss.")
             case .mp4: String(localized: "H.264 video that plays everywhere. Files that are already compatible are only repackaged, without quality loss.")
             case .compress: String(localized: "Makes the file the size you choose, for sharing or mail. The resolution stays the same unless the file gets very small.")
-            case .trim: String(localized: "Saves only the part you choose above, in the same quality.")
-            case .gif: String(localized: "Turns the video, or the part you choose above, into an animated GIF for chats and documents.")
+            case .trim: String(localized: "Saves only the part you choose below, in the same quality.")
+            case .gif: String(localized: "Turns the video, or the part you choose below, into an animated GIF for chats and documents.")
             }
         }
 
