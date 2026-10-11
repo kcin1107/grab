@@ -33,7 +33,7 @@ struct FormatMenu: View {
     /// glass as the link field and buttons next to it.
     var inBar = false
     private var format = FormatSettings()
-    @Environment(\.openGrabSettings) private var openSettings
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Menu {

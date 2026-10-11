@@ -18,9 +18,6 @@ struct GrabApp: App {
         .windowToolbarStyle(.unified)
         .defaultSize(width: 680, height: 520)
         .commands {
-            CommandGroup(replacing: .appSettings) {
-                SettingsCommand()
-            }
             CommandGroup(replacing: .newItem) {
                 FileCommands(manager: manager)
             }
@@ -30,24 +27,12 @@ struct GrabApp: App {
             }
         }
 
-        Window("Settings", id: "settings") {
+        Settings {
             SettingsView()
                 .environment(manager)
                 .environment(updater)
                 .environment(toolsUpdater)
         }
-        .windowToolbarStyle(.unified(showsTitle: false))
-        .windowResizability(.contentSize)
-        .defaultPosition(.center)
-    }
-}
-
-private struct SettingsCommand: View {
-    @Environment(\.openGrabSettings) private var openSettings
-
-    var body: some View {
-        Button("Settings…") { openSettings() }
-            .keyboardShortcut(",", modifiers: .command)
     }
 }
 
