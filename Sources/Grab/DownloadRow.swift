@@ -95,9 +95,9 @@ struct DownloadRow: View {
             }
             if let clip = item.clip {
                 Text("·")
-                Label(clip.label, systemImage: "scissors")
+                Label(clip.displayLabel, systemImage: "scissors")
                     .labelStyle(.titleAndIcon)
-                    .accessibilityLabel("Clip \(clip.label)")
+                    .accessibilityLabel("Clip \(clip.displayLabel)")
             }
             if let uploader = item.uploader, item.conversion == nil {
                 Text("·")

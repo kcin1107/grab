@@ -5,6 +5,12 @@ import SwiftUI
 /// and file icons. Every other file talks to AppKit through here.
 @MainActor
 enum MacPlatform {
+    /// Opens a file in its default app, or a web link in the browser. For code outside a view,
+    /// where `openURL` from the environment isn't available.
+    static func open(_ url: URL) {
+        NSWorkspace.shared.open(url)
+    }
+
     /// Shows files in a Finder window, selected.
     static func reveal(_ urls: [URL]) {
         NSWorkspace.shared.activateFileViewerSelecting(urls)
