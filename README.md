@@ -1,3 +1,5 @@
+<img src="docs/icon.png" width="128" alt="Grab app icon">
+
 # Grab
 
 A small Mac app for [yt-dlp](https://github.com/yt-dlp/yt-dlp). Paste a link, press Return, done.
