@@ -9,10 +9,7 @@ import Observation
 @MainActor
 @Observable
 final class HelperToolsUpdater {
-    var status: Updater.Status = .idle {
-        didSet { onStatusChange?() }
-    }
-    @ObservationIgnored var onStatusChange: (() -> Void)?
+    var status: Updater.Status = .idle
     var ffmpegVersion: String? {
         didSet { UserDefaults.standard.set(ffmpegVersion, forKey: "ffmpegVersion") }
     }
@@ -20,7 +17,7 @@ final class HelperToolsUpdater {
         didSet { UserDefaults.standard.set(denoVersion, forKey: "denoVersion") }
     }
 
-    @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var dailyChecks: Task<Void, Never>?
     @ObservationIgnored private var work: Task<Void, Never>?
     /// While downloading: which tool, bytes so far and the total (0 if unknown).
     var progress: (tool: String, done: Int64, total: Int64)?
@@ -47,12 +44,14 @@ final class HelperToolsUpdater {
     }
 
     func startAutomaticChecks() {
-        timer?.invalidate()
-        timer = nil
+        dailyChecks?.cancel()
+        dailyChecks = nil
         guard UserDefaults.standard.bool(forKey: Prefs.autoUpdate) else { return }
-        Task { await check() }
-        timer = Timer.scheduledTimer(withTimeInterval: 60 * 60 * 24, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.check() }
+        dailyChecks = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.check()
+                try? await Task.sleep(for: .seconds(86_400))
+            }
         }
     }
 
@@ -169,8 +168,8 @@ final class HelperToolsUpdater {
     private func install(_ tool: String, zip zipURL: URL, checksum: URL) async throws {
         let (sumData, _) = try await URLSession.shared.data(from: checksum)
         progress = (tool, 0, 0)
-        let zipFile = try await ToolDownloads.download(zipURL) { done, total in
-            Task { @MainActor [weak self] in self?.progress = (tool, done, total) }
+        let zipFile = try await ToolDownloads.download(zipURL) { [weak self] done, total in
+            Task { @MainActor in self?.progress = (tool, done, total) }
         }
 
         defer { try? FileManager.default.removeItem(at: zipFile) }

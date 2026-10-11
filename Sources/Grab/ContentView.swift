@@ -3,11 +3,13 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DownloadManager.self) private var manager
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openURL) private var openURL
+    @Environment(\.appearsActive) private var appearsActive
     @Environment(\.openGrabSettings) private var openSettings
     @Environment(HelperToolsUpdater.self) private var toolsUpdater
     @Environment(Updater.self) private var updater
     @AppStorage(Prefs.downloadPath) private var downloadPath = ""
+    @AppStorage(Prefs.autoUpdate) private var autoUpdate = true
     @State private var urlText = ""
     /// The selected row: where the arrow keys start from.
     @State private var selectedID: DownloadItem.ID?
@@ -17,7 +19,6 @@ struct ContentView: View {
     @State private var clipEnd = ""
     @State private var previewURL: URL?
     @FocusState private var listFocused: Bool
-    @State private var lastAutofilled: String?
     @State private var isTargeted = false
     @FocusState private var fieldFocused: Bool
 
@@ -33,7 +34,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
-            if Tools.ffmpegMissing || Tools.ytdlp == nil {
+            if !manager.ffmpegAvailable || !manager.ytdlpAvailable {
                 if manager.toolsInstalling {
                     setupBanner
                 } else {
@@ -63,14 +64,18 @@ struct ContentView: View {
         .navigationSubtitle(subtitle)
         .toolbar { toolbarContent }
         .overlay { if isTargeted { dropHighlight } }
-        .onDrop(of: [.fileURL, .url, .plainText], isTargeted: $isTargeted) { providers in
-            Task { await handleDrop(providers) }
-            return true
+        .dropDestination(for: DroppedItem.self) { items, _ in handle(items) }
+        .onDropSessionUpdated { session in
+            switch session.phase {
+            case .entering, .active: isTargeted = true
+            default: isTargeted = false
+            }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            autofillFromClipboard()
-        }
-        .onAppear(perform: appeared)
+        // ⌘V with the list focused (the link field handles its own paste).
+        .onPasteCommand(of: [.url, .plainText]) { _ in pasteFromClipboard() }
+        .onAppear { fieldFocused = true }
+        // Tools installed, or downloads moved or deleted, while Grab was in the background.
+        .onChange(of: appearsActive) { if appearsActive { manager.refreshFromDisk() } }
         .alert(duplicateTitle, isPresented: Binding(
             get: { manager.picks.isEmpty && !manager.duplicates.isEmpty },
             set: { shown in if !shown, let prompt = manager.duplicates.first { manager.resolve(prompt, with: .cancel) } }
@@ -101,12 +106,6 @@ struct ContentView: View {
                 .environment(manager)
                 .onAppear { shownPickID = pick.id }
         }
-    }
-
-    private func appeared() {
-        AppDelegate.openMainWindow = { openWindow(id: "main"); NSApp.activate() }
-        autofillFromClipboard()
-        fieldFocused = true
     }
 
     private var subtitle: String {
@@ -148,8 +147,8 @@ struct ContentView: View {
 
     /// A tool Grab needs is missing and setting it up failed (or automatic setup is off).
     private var toolsBanner: some View {
-        let automatic = UserDefaults.standard.bool(forKey: Prefs.autoUpdate)
-        let ytdlpMissing = Tools.ytdlp == nil
+        let automatic = autoUpdate
+        let ytdlpMissing = !manager.ytdlpAvailable
         let problem = [updater.failureMessage, toolsUpdater.failureMessage].compactMap { $0 }.first
         return HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -168,13 +167,12 @@ struct ContentView: View {
             if automatic {
                 Button("Try Again") {
                     Task { await updater.check(force: ytdlpMissing) }
-                    Task { await toolsUpdater.check(force: Tools.ffmpegMissing) }
+                    Task { await toolsUpdater.check(force: !manager.ffmpegAvailable) }
                 }
                 .buttonStyle(.glass)
             } else {
                 Button("Copy Install Command") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(ytdlpMissing ? "brew install yt-dlp ffmpeg" : "brew install ffmpeg", forType: .string)
+                    MacPlatform.copy(ytdlpMissing ? "brew install yt-dlp ffmpeg" : "brew install ffmpeg")
                 }
                 .buttonStyle(.glass)
                 .help("Needs Homebrew from brew.sh")
@@ -278,7 +276,7 @@ struct ContentView: View {
         if isMultiple {
             manager.add(fieldLinks)
         } else if clipping {
-            guard let clip else { NSSound.beep(); return }
+            guard let clip else { MacPlatform.beep(); return }
             manager.add(trimmed, clip: clip)
             withAnimation(.snappy(duration: 0.25)) { clipping = false }
             clipStart = ""
@@ -286,27 +284,14 @@ struct ContentView: View {
         } else {
             manager.add(trimmed)
         }
-        lastAutofilled = trimmed
         withAnimation(.snappy) { urlText = "" }
     }
 
-    private func autofillFromClipboard() {
-        // Several copied links fill the field together, ready to download as a batch.
-        let copied = Links.extract(from: NSPasteboard.general)
-        if urlText.isEmpty, copied.count > 1 {
-            let joined = copied.joined(separator: " ")
-            guard joined != lastAutofilled else { return }
-            lastAutofilled = joined
-            urlText = joined
-            return
-        }
-        guard urlText.isEmpty,
-              let link = Clipboard.videoURL(),
-              link != lastAutofilled,
-              !manager.items.contains(where: { $0.url == link })
-        else { return }
-        lastAutofilled = link
-        urlText = link
+    /// ⌘V outside the link field: links on the clipboard start downloading.
+    private func pasteFromClipboard() {
+        guard !fieldFocused else { return }
+        let links = Links.extract(urls: MacPlatform.pasteboardURLs(), text: MacPlatform.pasteboardString())
+        if links.isEmpty { MacPlatform.beep() } else { manager.add(links) }
     }
 
     // MARK: - List
@@ -356,7 +341,8 @@ struct ContentView: View {
 
     private func quickLook(_ item: DownloadItem) {
         select(item.id)
-        guard let file = item.existingFile else { NSSound.beep(); return }
+        item.refreshFileStatus()
+        guard let file = item.existingFile else { MacPlatform.beep(); return }
         previewURL = previewURL == file ? nil : file
     }
 
@@ -376,42 +362,35 @@ struct ContentView: View {
         } description: {
             Text("Paste one or more links above, or drop links, a list of links, or a video or song to convert anywhere in this window.")
         } actions: {
-            let copied = Links.extract(from: NSPasteboard.general)
-            if copied.count > 1 {
-                Button("Download \(copied.count) Links from Clipboard") { manager.add(copied) }
-                    .buttonStyle(.glass)
-            } else if let link = Clipboard.videoURL() {
-                Button("Download from Clipboard") { manager.add(link) }
-                    .buttonStyle(.glass)
-                    .help(link)
-            }
+            // Reading the clipboard is the user's own action, so there's no privacy prompt.
+            PasteButton(payloadType: DroppedItem.self) { items in handle(items) }
         }
         .frame(maxHeight: .infinity)
     }
 
     /// Links (or text containing them) start downloading; text files are read for their links;
     /// videos and songs from this Mac open the convert sheet.
-    private func handleDrop(_ providers: [NSItemProvider]) async {
+    private func handle(_ items: [DroppedItem]) {
         var links: [String] = []
         var media: [URL] = []
-        for provider in providers {
-            let url = await provider.load(URL.self)
-            if let url, url.isFileURL {
+        for item in items {
+            switch item {
+            case .url(let url) where url.isFileURL:
                 if Converting.isMedia(url) {
                     media.append(url)
                 } else if Converting.isText(url) {
                     links += Links.extract(fromFile: url)
                 }
-            } else if let link = url.flatMap({ Links.validated($0.absoluteString) }) {
-                links.append(link)
-            } else if let text = await provider.load(String.self) {
+            case .url(let url):
+                if let link = Links.validated(url.absoluteString) { links.append(link) }
+            case .text(let text):
                 // Selected text from a browser or a note, with one or more links in it.
                 links += Links.extract(fromText: text)
             }
         }
         if !links.isEmpty { manager.add(links) }
         if !media.isEmpty { manager.openConverter(for: media) }
-        if links.isEmpty, media.isEmpty { NSSound.beep() }
+        if links.isEmpty, media.isEmpty { MacPlatform.beep() }
     }
 
     private var dropHighlight: some View {
@@ -428,7 +407,7 @@ struct ContentView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
-                NSWorkspace.shared.open(URL(fileURLWithPath: downloadPath))
+                openURL(URL(fileURLWithPath: downloadPath, isDirectory: true))
             } label: {
                 Label("Show Downloads Folder", systemImage: "folder")
             }
@@ -450,12 +429,13 @@ struct ContentView: View {
     }
 }
 
-extension NSItemProvider {
-    /// Loads a dropped URL or string, or nil when the item isn't one.
-    func load<T: _ObjectiveCBridgeable>(_ type: T.Type) async -> T? where T._ObjectiveCType: NSItemProviderReading {
-        guard canLoadObject(ofClass: type) else { return nil }
-        return await withCheckedContinuation { continuation in
-            _ = loadObject(ofClass: type) { value, _ in continuation.resume(returning: value) }
-        }
+/// Something dropped on the window or pasted: a file or web address, or text that may hold links.
+enum DroppedItem: Transferable {
+    case url(URL)
+    case text(String)
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(importing: { DroppedItem.url($0) })
+        ProxyRepresentation(importing: { DroppedItem.text($0) })
     }
 }

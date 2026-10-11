@@ -169,7 +169,7 @@ private struct SearchResultRow: View {
                 .frame(width: 30)
                 .accessibilityLabel("Added")
         } else if let existing {
-            Button { NSWorkspace.shared.activateFileViewerSelecting([existing]) } label: {
+            Button { MacPlatform.reveal([existing]) } label: {
                 Label("Downloaded", systemImage: "checkmark.circle")
                     .font(.caption)
             }

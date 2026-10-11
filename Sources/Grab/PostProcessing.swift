@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 
 // The steps after yt-dlp has finished: album art, chapter tags, sizes.
 extension DownloadManager {

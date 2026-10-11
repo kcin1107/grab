@@ -57,9 +57,10 @@ struct SettingsView: View {
 struct OpenSettingsAction {
     let openWindow: OpenWindowAction
 
+    @MainActor
     func callAsFunction() {
         openWindow(id: "settings")
-        NSApp.activate()
+        MacPlatform.activate()
     }
 }
 
@@ -123,9 +124,7 @@ private struct GeneralSettings: View {
                         Text((downloadPath as NSString).abbreviatingWithTildeInPath)
                             .truncationMode(.middle)
                     } icon: {
-                        Image(nsImage: NSWorkspace.shared.icon(forFile: downloadPath))
-                            .resizable()
-                            .frame(width: 16, height: 16)
+                        FileIcon(path: downloadPath, size: 16)
                     }
                     .lineLimit(1)
                     Button("Choose…", action: chooseFolder)
@@ -267,6 +266,7 @@ private struct AdvancedSettings: View {
                     .onChange(of: autoUpdate) {
                         updater.startAutomaticChecks()
                         toolsUpdater.startAutomaticChecks()
+                        manager.refreshTools()
                         manager.refreshVersion()
                     }
                 Toggle("Use yt-dlp nightly builds", isOn: $nightly)
@@ -295,7 +295,7 @@ private struct AdvancedSettings: View {
                         statusIcon(toolsUpdater.status)
                         if autoUpdate, HelperToolsUpdater.ffmpegInstalled, let version = toolsUpdater.ffmpegVersion {
                             Text(version).monospacedDigit()
-                        } else if !Tools.ffmpegMissing {
+                        } else if manager.ffmpegAvailable {
                             Text("Installed on this Mac").foregroundStyle(.secondary)
                         } else {
                             Text("Not found").foregroundStyle(.red)
@@ -343,6 +343,7 @@ private struct AdvancedSettings: View {
             Section {
                 TextField("Custom yt-dlp path", text: $ytdlpPath, prompt: Text("None"))
                     .onSubmit { manager.refreshVersion() }
+                    .onChange(of: ytdlpPath) { manager.refreshTools() }
             } footer: {
                 Text("Overrides both of the above when set.").foregroundStyle(.secondary)
             }

@@ -4,9 +4,9 @@ import SwiftUI
 struct GrabApp: App {
     @NSApplicationDelegateAdaptor private var app: AppDelegate
 
-    private var manager: DownloadManager { app.manager }
-    private var updater: Updater { app.updater }
-    private var toolsUpdater: HelperToolsUpdater { app.toolsUpdater }
+    private var manager: DownloadManager { app.model.manager }
+    private var updater: Updater { app.model.updater }
+    private var toolsUpdater: HelperToolsUpdater { app.model.toolsUpdater }
 
     var body: some Scene {
         Window("Grab", id: "main") {
@@ -22,17 +22,11 @@ struct GrabApp: App {
                 SettingsCommand()
             }
             CommandGroup(replacing: .newItem) {
-                Button("Download Links from File…") { manager.chooseLinkFile() }
-                Button("Convert Files…") { manager.chooseFilesToConvert() }
-                    .keyboardShortcut("o")
+                FileCommands(manager: manager)
             }
             CommandGroup(after: .pasteboard) {
                 Divider()
-                Button("Download Link from Clipboard") {
-                    let links = Links.extract(from: NSPasteboard.general)
-                    if links.isEmpty { NSSound.beep() } else { manager.add(links) }
-                }
-                .keyboardShortcut("d", modifiers: [.command, .shift])
+                ClipboardCommand(manager: manager)
             }
         }
 
@@ -57,9 +51,39 @@ private struct SettingsCommand: View {
     }
 }
 
-enum Clipboard {
-    /// Returns the clipboard contents if it looks like a web link.
-    static func videoURL() -> String? {
-        NSPasteboard.general.string(forType: .string).flatMap(Links.validated)
+/// File → Download Links from File… and Convert Files…. The models never open windows, so the main
+/// window is brought back here first.
+private struct FileCommands: View {
+    let manager: DownloadManager
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Download Links from File…") {
+            openWindow(id: "main")
+            manager.chooseLinkFile()
+        }
+        Button("Convert Files…") {
+            openWindow(id: "main")
+            manager.chooseFilesToConvert()
+        }
+        .keyboardShortcut("o")
+    }
+}
+
+private struct ClipboardCommand: View {
+    let manager: DownloadManager
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Download Link from Clipboard") {
+            let links = Links.extract(urls: MacPlatform.pasteboardURLs(), text: MacPlatform.pasteboardString())
+            if links.isEmpty {
+                MacPlatform.beep()
+            } else {
+                openWindow(id: "main")
+                manager.add(links)
+            }
+        }
+        .keyboardShortcut("d", modifiers: [.command, .shift])
     }
 }

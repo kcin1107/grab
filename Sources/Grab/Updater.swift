@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import Observation
+import Synchronization
 
 /// Keeps a private copy of the official yt-dlp macOS build in Application Support and updates it
 /// from GitHub releases. Homebrew's yt-dlp can't update itself, so this is what makes
@@ -12,10 +13,7 @@ final class Updater {
         case idle, checking, downloading, upToDate, updated(String), failed(String)
     }
 
-    var status: Status = .idle {
-        didSet { onStatusChange?() }
-    }
-    @ObservationIgnored var onStatusChange: (() -> Void)?
+    var status: Status = .idle
     var installedVersion: String?
     /// While downloading: bytes so far and the total (0 if unknown).
     var progress: (done: Int64, total: Int64)?
@@ -23,7 +21,7 @@ final class Updater {
         didSet { UserDefaults.standard.set(lastChecked, forKey: "updaterLastChecked") }
     }
 
-    @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var dailyChecks: Task<Void, Never>?
     @ObservationIgnored private var work: Task<Void, Never>?
 
     static let directory: URL = {
@@ -44,15 +42,14 @@ final class Updater {
 
     /// Checks on launch and then daily while the app is open.
     func startAutomaticChecks() {
-        guard UserDefaults.standard.bool(forKey: Prefs.autoUpdate) else {
-            timer?.invalidate()
-            timer = nil
-            return
-        }
-        Task { await check() }
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 60 * 60 * 24, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.check() }
+        dailyChecks?.cancel()
+        dailyChecks = nil
+        guard UserDefaults.standard.bool(forKey: Prefs.autoUpdate) else { return }
+        dailyChecks = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.check()
+                try? await Task.sleep(for: .seconds(86_400))
+            }
         }
     }
 
@@ -137,8 +134,8 @@ final class Updater {
 
     private func install(_ release: Release) async throws {
         let (sumsData, _) = try await URLSession.shared.data(from: release.checksums)
-        let tempFile = try await ToolDownloads.download(release.binary) { done, total in
-            Task { @MainActor [weak self] in self?.progress = (done, total) }
+        let tempFile = try await ToolDownloads.download(release.binary) { [weak self] done, total in
+            Task { @MainActor in self?.progress = (done, total) }
         }
 
         defer { try? FileManager.default.removeItem(at: tempFile) }
@@ -219,7 +216,7 @@ enum ToolDownloads {
         do {
             return try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { continuation in
-                    delegate.finish = { continuation.resume(with: $0) }
+                    delegate.finish.withLock { $0 = { continuation.resume(with: $0) } }
                     task.resume()
                 }
             } onCancel: {
@@ -283,17 +280,17 @@ enum ToolDownloads {
         return output.status == 0
     }
 
-    private final class Delegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private final class Delegate: NSObject, URLSessionDownloadDelegate, Sendable {
         let report: @Sendable (Int64, Int64) -> Void
-        var finish: ((Result<URL, Error>) -> Void)?
-        private let lock = NSLock()
+        /// Called once, with the downloaded file or the error; whichever of the delegate callbacks comes first.
+        let finish = Mutex<(@Sendable (Result<URL, Error>) -> Void)?>(nil)
         init(report: @escaping @Sendable (Int64, Int64) -> Void) { self.report = report }
 
         private func done(_ result: Result<URL, Error>) {
-            lock.lock()
-            let finish = self.finish
-            self.finish = nil
-            lock.unlock()
+            let finish = finish.withLock { current in
+                defer { current = nil }
+                return current
+            }
             finish?(result)
         }
 

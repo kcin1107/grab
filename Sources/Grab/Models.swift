@@ -189,12 +189,19 @@ final class DownloadItem: Identifiable {
     var spotify: SpotifyTrack?
     var resolvedURL: String?
 
-    var state: State = .queued
+    var state: State = .queued {
+        didSet { if state == .finished { refreshFileStatus() } }
+    }
     var progress: Double = 0
     var speed: Double?
     var eta: Double?
     var phase: String?
-    var fileURL: URL?
+    var fileURL: URL? {
+        didSet { if state == .finished { refreshFileStatus() } }
+    }
+    /// A finished download's file is still where Grab saved it. Checked when the download finishes
+    /// and by `refreshFileStatus()` (when Grab comes to the front), not on every redraw.
+    private(set) var fileIsPresent = false
     var fileSize: Int64?
     var errorMessage: String?
     var finishedAt: Date?
@@ -240,15 +247,15 @@ final class DownloadItem: Identifiable {
     }
 
     /// A finished download whose file has since been moved or deleted.
-    var fileMissing: Bool {
-        guard state == .finished, let fileURL else { return false }
-        return !FileManager.default.fileExists(atPath: fileURL.path)
-    }
+    var fileMissing: Bool { state == .finished && fileURL != nil && !fileIsPresent }
 
     /// The downloaded file, if it's still where Grab saved it.
-    var existingFile: URL? {
-        guard state == .finished, let fileURL, !fileMissing else { return nil }
-        return fileURL
+    var existingFile: URL? { state == .finished && fileIsPresent ? fileURL : nil }
+
+    /// Looks at the disk again for the downloaded file.
+    func refreshFileStatus() {
+        let present = state == .finished && fileURL.map { FileManager.default.fileExists(atPath: $0.path) } == true
+        if present != fileIsPresent { fileIsPresent = present }
     }
 
     /// Finished, failed or cancelled: what "Clear Finished" removes. Paused downloads stay.

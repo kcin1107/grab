@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DownloadRow: View {
     @Environment(DownloadManager.self) private var manager
+    @Environment(\.openURL) private var openURL
     let item: DownloadItem
     var isSelected = false
     var onSelect: () -> Void = {}
@@ -305,15 +306,14 @@ struct DownloadRow: View {
         }
         if let conversion = item.conversion {
             Button("Show Original in Finder") {
-                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: conversion.source)])
+                MacPlatform.reveal([URL(fileURLWithPath: conversion.source)])
             }
         } else {
             Button("Copy Link") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(item.url, forType: .string)
+                MacPlatform.copy(item.url)
             }
             Button("Open Link in Browser") {
-                if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
+                if let url = URL(string: item.url) { openURL(url) }
             }
         }
         Divider()
@@ -323,13 +323,15 @@ struct DownloadRow: View {
     }
 
     private func open() {
+        item.refreshFileStatus()
         guard let file = item.existingFile, DownloadManager.isInside(file, folder: item.folder) else { return }
-        NSWorkspace.shared.open(file)
+        openURL(file)
     }
 
     private func reveal() {
+        item.refreshFileStatus()
         guard let file = item.existingFile, DownloadManager.isInside(file, folder: item.folder) else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([file])
+        MacPlatform.reveal([file])
     }
 }
 

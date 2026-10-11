@@ -64,9 +64,7 @@ struct ConvertSheet: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: files.first?.path ?? ""))
-                .resizable()
-                .frame(width: 48, height: 48)
+            FileIcon(path: files.first?.path ?? "", size: 48)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(heading)

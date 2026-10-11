@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 
 enum Links {
     /// Accepts web links and Spotify and Apple Music links only.
@@ -10,11 +10,11 @@ enum Links {
         return trimmed
     }
 
-    /// Every distinct link on a pasteboard: copied URLs first, then any found in selected text.
-    static func extract(from pasteboard: NSPasteboard) -> [String] {
-        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] ?? []
+    /// Every distinct link among copied URLs and text (from the clipboard, say): the URLs first, then any
+    /// found in the text.
+    static func extract(urls: [URL], text: String?) -> [String] {
         var found = unique(urls.compactMap { validated($0.absoluteString) })
-        if let text = pasteboard.string(forType: .string) {
+        if let text {
             found = unique(found + extract(fromText: text))
         }
         return found

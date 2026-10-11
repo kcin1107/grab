@@ -8,7 +8,7 @@ let package = Package(
         .executableTarget(
             name: "Grab",
             path: "Sources/Grab",
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]
 )

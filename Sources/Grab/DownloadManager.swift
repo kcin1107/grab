@@ -10,6 +10,11 @@ final class DownloadManager {
     var items: [DownloadItem] = []
     var ytdlpVersion: String?
 
+    /// Whether yt-dlp and ffmpeg can be found. Looked up at launch, after setup or an update, when
+    /// settings that affect the lookup change and when Grab comes to the front, so redraws don't hit the disk.
+    private(set) var ytdlpAvailable = false
+    private(set) var ffmpegAvailable = false
+
     /// True while Grab is downloading or updating its own yt-dlp/ffmpeg.
     var toolsInstalling = false
 
@@ -21,6 +26,7 @@ final class DownloadManager {
 
     init() {
         Prefs.registerDefaults()
+        refreshTools()
         refreshVersion()
         items = History.load()
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -43,6 +49,26 @@ final class DownloadManager {
     var activeCount: Int { items.filter(\.isActive).count }
     var hasFinished: Bool { items.contains(where: \.isDone) }
 
+    /// Called when first-run setup or an update of the tools has finished: queued downloads can start,
+    /// and the yt-dlp version and which tools are installed may have changed.
+    func toolsFinished() {
+        refreshTools()
+        refreshVersion()
+        pump()
+    }
+
+    func refreshTools() {
+        ytdlpAvailable = Tools.ytdlp != nil
+        ffmpegAvailable = !Tools.ffmpegMissing
+    }
+
+    /// Looks at the disk again for what views show: the tools, and whether finished downloads are
+    /// still where they were saved. Called when Grab comes to the front.
+    func refreshFromDisk() {
+        refreshTools()
+        for item in items { item.refreshFileStatus() }
+    }
+
     func refreshVersion() {
         Task {
             let data = await capture(["--version"])
@@ -62,7 +88,6 @@ final class DownloadManager {
                 presentPicker(for: url, options: options, folder: folder)
             } else if let existing = alreadyDownloaded(url, isAudio: options.isAudio || MusicLinks.isMusicLink(url), clip: clip) {
                 duplicates.append(DuplicatePrompt(existing: existing, url: url, options: options, folder: folder, clip: clip))
-                AppDelegate.openMainWindow?()
             } else if MusicLinks.isMusicLink(url) {
                 addSpotify(url, options: options, folder: folder, clip: clip)
             } else {
@@ -106,12 +131,11 @@ final class DownloadManager {
         panel.allowedContentTypes = [.text]
         panel.allowsMultipleSelection = true
         panel.message = String(localized: "Choose a text file with links, one per line or mixed with other text.")
-        NSApp.activate()
+        MacPlatform.activate()
         guard panel.runModal() == .OK else { return }
         let links = panel.urls.flatMap(Links.extract(fromFile:))
-        guard !links.isEmpty else { NSSound.beep(); return }
+        guard !links.isEmpty else { MacPlatform.beep(); return }
         add(links)
-        AppDelegate.openMainWindow?()
     }
 
     // MARK: - Converting files on this Mac
@@ -128,7 +152,7 @@ final class DownloadManager {
         panel.directoryURL = URL(fileURLWithPath: path)
         panel.prompt = String(localized: "Download Here")
         panel.message = count == 1 ? String(localized: "Choose where to save this download.") : String(localized: "Choose where to save these \(count) downloads.")
-        NSApp.activate()
+        MacPlatform.activate()
         return panel.runModal() == .OK ? panel.url?.path : nil
     }
 
@@ -168,7 +192,7 @@ final class DownloadManager {
         duplicates.removeAll { $0.id == prompt.id }
         switch choice {
         case .showInFinder:
-            if let file = prompt.existing.existingFile { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+            if let file = prompt.existing.existingFile { MacPlatform.reveal([file]) }
         case .downloadAgain:
             if MusicLinks.isMusicLink(prompt.url) {
                 addSpotify(prompt.url, options: prompt.options, folder: prompt.folder, clip: prompt.clip)
@@ -418,6 +442,6 @@ final class DownloadManager {
 
     private func updateBadge() {
         let count = activeCount
-        NSApp?.dockTile.badgeLabel = count > 0 ? "\(count)" : nil
+        MacPlatform.setDockBadge(count > 0 ? "\(count)" : nil)
     }
 }

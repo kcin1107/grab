@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 
@@ -122,7 +121,6 @@ extension DownloadManager {
         defaults.set(chosen.rawValue, forKey: Prefs.searchKind)
         let session = SearchSession(query: query, kind: chosen)
         search = session
-        AppDelegate.openMainWindow?()
         Task { await run(session) }
     }
 
