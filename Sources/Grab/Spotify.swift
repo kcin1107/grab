@@ -123,14 +123,8 @@ enum Spotify {
     }
 
     private static func embedEntity(_ link: Link) async throws -> [String: Any] {
-        var request = URLRequest(url: URL(string: "https://open.spotify.com/embed/\(link.kind.rawValue)/\(link.id)")!)
-        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
-                         forHTTPHeaderField: "User-Agent")
-        let (data, _) = try await URLSession.shared.data(for: request)
-        let html = String(decoding: data, as: UTF8.self)
-        guard let start = html.range(of: #"<script id="__NEXT_DATA__" type="application/json">"#),
-              let end = html.range(of: "</script>", range: start.upperBound..<html.endIndex),
-              let root = try? JSONSerialization.jsonObject(with: Data(html[start.upperBound..<end.lowerBound].utf8)),
+        let url = URL(string: "https://open.spotify.com/embed/\(link.kind.rawValue)/\(link.id)")!
+        guard let root = try await WebPage.embeddedJSON(at: url, scriptTag: #"<script id="__NEXT_DATA__" type="application/json">"#),
               let entity = (root as AnyObject).value(forKeyPath: "props.pageProps.state.data.entity") as? [String: Any]
         else { throw Failure.unreadable }
         return entity
@@ -162,9 +156,7 @@ enum Spotify {
     }
 
     static func musicSearchURL(for track: SpotifyTrack) -> String {
-        var c = URLComponents(string: "https://music.youtube.com/search")!
-        c.queryItems = [URLQueryItem(name: "q", value: (track.artists + [track.title]).joined(separator: " "))]
-        return c.url!.absoluteString + "#songs"
+        Searching.musicSearchURL(query: (track.artists + [track.title]).joined(separator: " "))
     }
 
     static func videoSearchQuery(for track: SpotifyTrack) -> String {

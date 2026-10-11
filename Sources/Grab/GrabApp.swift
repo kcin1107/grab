@@ -60,12 +60,6 @@ private struct SettingsCommand: View {
 enum Clipboard {
     /// Returns the clipboard contents if it looks like a web link.
     static func videoURL() -> String? {
-        guard let raw = NSPasteboard.general.string(forType: .string)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              let url = URL(string: raw),
-              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
-              url.host != nil
-        else { return nil }
-        return raw
+        NSPasteboard.general.string(forType: .string).flatMap(Links.validated)
     }
 }

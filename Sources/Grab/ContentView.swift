@@ -25,12 +25,7 @@ struct ContentView: View {
     /// Several links pasted at once (one per line, or separated by spaces) download together.
     private var fieldLinks: [String] { Links.extract(fromText: trimmed) }
     private var isMultiple: Bool { fieldLinks.count > 1 }
-    private var isValid: Bool {
-        if isMultiple { return true }
-        if MusicLinks.parse(trimmed) != nil { return true }
-        guard let url = URL(string: trimmed), let scheme = url.scheme else { return false }
-        return (scheme == "http" || scheme == "https") && url.host != nil
-    }
+    private var isValid: Bool { isMultiple || Links.validated(trimmed) != nil }
 
     /// Words rather than a link: Return searches YouTube.
     private var isSearch: Bool { !trimmed.isEmpty && !isValid && !clipping }
@@ -38,7 +33,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
-            if manager.ffmpegMissing || manager.executableURL == nil {
+            if Tools.ffmpegMissing || Tools.ytdlp == nil {
                 if manager.toolsInstalling {
                     setupBanner
                 } else {
@@ -154,7 +149,7 @@ struct ContentView: View {
     /// A tool Grab needs is missing and setting it up failed (or automatic setup is off).
     private var toolsBanner: some View {
         let automatic = UserDefaults.standard.bool(forKey: Prefs.autoUpdate)
-        let ytdlpMissing = manager.executableURL == nil
+        let ytdlpMissing = Tools.ytdlp == nil
         let problem = [updater.failureMessage, toolsUpdater.failureMessage].compactMap { $0 }.first
         return HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -173,7 +168,7 @@ struct ContentView: View {
             if automatic {
                 Button("Try Again") {
                     Task { await updater.check(force: ytdlpMissing) }
-                    Task { await toolsUpdater.check(force: manager.ffmpegMissing) }
+                    Task { await toolsUpdater.check(force: Tools.ffmpegMissing) }
                 }
                 .buttonStyle(.glass)
             } else {
@@ -262,37 +257,9 @@ struct ContentView: View {
     /// The range typed in the clip row, or nil when it isn't valid (or not set).
     private var clip: ClipRange? { ClipRange.from(start: clipStart, end: clipEnd) }
 
-    private var clipIsInvalid: Bool {
-        (!clipStart.isEmpty || !clipEnd.isEmpty) && clip == nil
-    }
-
     private var clipBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "scissors")
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            Text("Clip from")
-            TextField("0:00", text: $clipStart)
-                .frame(width: 72)
-                .accessibilityLabel("Clip start")
-            Text("to")
-            TextField("end", text: $clipEnd)
-                .frame(width: 72)
-                .accessibilityLabel("Clip end")
-            Group {
-                if clipIsInvalid {
-                    Label("Use times like 1:30, with the end after the start", systemImage: "exclamationmark.circle")
-                        .foregroundStyle(.red)
-                } else if let clip {
-                    Text(clip.end == nil ? String(localized: "From \(Format.duration(clip.start)) to the end")
-                                         : String(localized: "\(Format.duration((clip.end ?? 0) - clip.start)) clip"))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Times like 1:30 or 1:02:03").foregroundStyle(.tertiary)
-                }
-            }
-            .font(.callout)
-            .lineLimit(1)
+        HStack(spacing: 0) {
+            ClipRangeFields(prefix: "Clip from", start: $clipStart, end: $clipEnd)
             Spacer(minLength: 0)
         }
         .textFieldStyle(.roundedBorder)

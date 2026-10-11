@@ -129,20 +129,10 @@ final class Updater {
     }
 
     private func latestRelease() async throws -> Release {
-        var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        let (data, _) = try await URLSession.shared.data(for: request)
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tag = json["tag_name"] as? String,
-              let assets = json["assets"] as? [[String: Any]] else { throw Failure.noAsset }
-        func asset(_ name: String) -> URL? {
-            (assets.first { $0["name"] as? String == name }?["browser_download_url"] as? String).flatMap(URL.init)
-        }
-        guard let binary = asset("yt-dlp_macos"), TrustedHosts.isAllowed(binary, hosts: ["github.com"])
-        else { throw Failure.noAsset }
-        guard let sums = asset("SHA2-256SUMS"), TrustedHosts.isAllowed(sums, hosts: ["github.com"])
-        else { throw Failure.checksumMissing }
-        return Release(tag: tag, binary: binary, checksums: sums)
+        guard let release = try await ToolDownloads.latestRelease(repo: repo) else { throw Failure.noAsset }
+        guard let binary = release.asset("yt-dlp_macos") else { throw Failure.noAsset }
+        guard let sums = release.asset("SHA2-256SUMS") else { throw Failure.checksumMissing }
+        return Release(tag: release.tag, binary: binary, checksums: sums)
     }
 
     private func install(_ release: Release) async throws {
@@ -160,9 +150,7 @@ final class Updater {
             .first { $0.count == 2 && $0[1] == "yt-dlp_macos" }?[0]
         guard let expected else { throw Failure.checksumMissing }
 
-        let digest = SHA256.hash(data: try Data(contentsOf: tempFile, options: .mappedIfSafe))
-        let actual = digest.map { String(format: "%02x", $0) }.joined()
-        guard actual == expected.lowercased() else { throw Failure.checksumMismatch }
+        guard try ToolDownloads.sha256(of: tempFile) == expected.lowercased() else { throw Failure.checksumMismatch }
 
         let fm = FileManager.default
         try fm.createDirectory(at: Self.directory, withIntermediateDirectories: true)
@@ -175,11 +163,7 @@ final class Updater {
             try? fm.removeItem(at: staged)
             throw Failure.badBinary
         }
-        if fm.fileExists(atPath: Self.binaryURL.path) {
-            _ = try fm.replaceItemAt(Self.binaryURL, withItemAt: staged)
-        } else {
-            try fm.moveItem(at: staged, to: Self.binaryURL)
-        }
+        try ToolDownloads.install(staged, at: Self.binaryURL)
     }
 }
 
@@ -255,25 +239,48 @@ enum ToolDownloads {
         }
     }
 
+    /// The latest release of a GitHub repository, or nil if the answer isn't a release.
+    static func latestRelease(repo: String) async throws -> GitHubRelease? {
+        var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        let (data, _) = try await URLSession.shared.data(for: request)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tag = json["tag_name"] as? String,
+              let assets = json["assets"] as? [[String: Any]] else { return nil }
+        return GitHubRelease(tag: tag, assets: assets)
+    }
+
+    struct GitHubRelease {
+        let tag: String
+        let assets: [[String: Any]]
+
+        /// A release file's address, only if it is served from github.com.
+        func asset(_ name: String) -> URL? {
+            let url = (assets.first { $0["name"] as? String == name }?["browser_download_url"] as? String).flatMap(URL.init)
+            return url.flatMap { TrustedHosts.isAllowed($0, hosts: ["github.com"]) ? $0 : nil }
+        }
+    }
+
+    /// The SHA-256 of a file, as lowercase hex.
+    static func sha256(of file: URL) throws -> String {
+        SHA256.hash(data: try Data(contentsOf: file, options: .mappedIfSafe))
+            .map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Puts a checked tool in place: replaces the old one atomically, or moves it in.
+    static func install(_ staged: URL, at destination: URL) throws {
+        if FileManager.default.fileExists(atPath: destination.path) {
+            _ = try FileManager.default.replaceItemAt(destination, withItemAt: staged)
+        } else {
+            try FileManager.default.moveItem(at: staged, to: destination)
+        }
+    }
+
     /// Runs a downloaded tool once to see it works, giving it a minute.
     static func runs(_ path: String, _ arguments: [String], name: String) async throws -> Bool {
-        let result = await Task.detached { () -> Bool? in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: path)
-            process.arguments = arguments
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            guard (try? process.run()) != nil else { return false }
-            let deadline = Date.now.addingTimeInterval(60)
-            while process.isRunning, Date.now < deadline { usleep(100_000) }
-            if process.isRunning {
-                process.terminate()
-                return nil
-            }
-            return process.terminationStatus == 0
-        }.value
-        guard let result else { throw Failure.didntStart(name) }
-        return result
+        guard let output = await Tools.run(path, arguments, timeout: .seconds(60)) else { return false }
+        if output.timedOut { throw Failure.didntStart(name) }
+        return output.status == 0
     }
 
     private final class Delegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {

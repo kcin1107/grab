@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import Observation
 
@@ -138,20 +137,10 @@ final class HelperToolsUpdater {
     // MARK: - Deno
 
     private func updateDeno(force: Bool) async throws -> Bool {
-        var request = URLRequest(url: URL(string: "https://api.github.com/repos/denoland/deno/releases/latest")!)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        let (data, _) = try await URLSession.shared.data(for: request)
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tag = json["tag_name"] as? String,
-              let assets = json["assets"] as? [[String: Any]] else { throw Failure.noRelease }
-        func asset(_ name: String) -> URL? {
-            (assets.first { $0["name"] as? String == name }?["browser_download_url"] as? String).flatMap(URL.init)
-        }
+        guard let release = try await ToolDownloads.latestRelease(repo: "denoland/deno") else { throw Failure.noRelease }
         let name = "deno-\(Self.denoTarget).zip"
-        guard let zip = asset(name), let sum = asset("\(name).sha256sum"),
-              TrustedHosts.isAllowed(zip, hosts: ["github.com"]), TrustedHosts.isAllowed(sum, hosts: ["github.com"])
-        else { throw Failure.noRelease }
-        let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+        guard let zip = release.asset(name), let sum = release.asset("\(name).sha256sum") else { throw Failure.noRelease }
+        let version = release.tag.hasPrefix("v") ? String(release.tag.dropFirst()) : release.tag
 
         if !force, Self.isInstalled("deno"), denoVersion == version { return false }
         status = .downloading
@@ -188,9 +177,7 @@ final class HelperToolsUpdater {
 
         let expected = String(decoding: sumData, as: UTF8.self)
             .split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
-        let actual = SHA256.hash(data: try Data(contentsOf: zipFile, options: .mappedIfSafe))
-            .map { String(format: "%02x", $0) }.joined()
-        guard !expected.isEmpty, actual == expected.lowercased() else { throw Failure.checksumMismatch }
+        guard !expected.isEmpty, try ToolDownloads.sha256(of: zipFile) == expected.lowercased() else { throw Failure.checksumMismatch }
 
         let fm = FileManager.default
         let staging = fm.temporaryDirectory.appendingPathComponent("GrabTool-\(UUID().uuidString)")
@@ -203,11 +190,6 @@ final class HelperToolsUpdater {
         guard try await ToolDownloads.runs(binary.path, [tool == "deno" ? "--version" : "-version"], name: tool) else { throw Failure.badBinary }
 
         try fm.createDirectory(at: Updater.directory, withIntermediateDirectories: true)
-        let destination = Self.path(tool)
-        if fm.fileExists(atPath: destination.path) {
-            _ = try fm.replaceItemAt(destination, withItemAt: binary)
-        } else {
-            try fm.moveItem(at: binary, to: destination)
-        }
+        try ToolDownloads.install(binary, at: Self.path(tool))
     }
 }

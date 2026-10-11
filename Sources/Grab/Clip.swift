@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// A part of a video to download, in seconds. `end == nil` means until the end.
 struct ClipRange: Codable, Equatable {
@@ -48,5 +48,48 @@ struct ClipRange: Codable, Equatable {
         if let e = parsedEnd, e <= s { return nil }
         if parsedStart == nil, parsedEnd == nil { return nil }
         return ClipRange(start: s, end: parsedEnd)
+    }
+}
+
+/// The clip start and end fields with a line saying what they add up to (or what's wrong with
+/// them), shared by the link bar and the convert sheet.
+struct ClipRangeFields: View {
+    let prefix: LocalizedStringKey
+    @Binding var start: String
+    @Binding var end: String
+    var spacing: CGFloat = 10
+    var fieldWidth: CGFloat = 72
+
+    private var clip: ClipRange? { ClipRange.from(start: start, end: end) }
+    private var isInvalid: Bool { (!start.isEmpty || !end.isEmpty) && clip == nil }
+
+    var body: some View {
+        HStack(spacing: spacing) {
+            Image(systemName: "scissors")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(prefix)
+            TextField("0:00", text: $start)
+                .frame(width: fieldWidth)
+                .accessibilityLabel("Clip start")
+            Text("to")
+            TextField("end", text: $end)
+                .frame(width: fieldWidth)
+                .accessibilityLabel("Clip end")
+            Group {
+                if isInvalid {
+                    Label("Use times like 1:30, with the end after the start", systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.red)
+                } else if let clip {
+                    Text(clip.end == nil ? String(localized: "From \(Format.duration(clip.start)) to the end")
+                                         : String(localized: "\(Format.duration((clip.end ?? 0) - clip.start)) clip"))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Times like 1:30 or 1:02:03").foregroundStyle(.tertiary)
+                }
+            }
+            .font(.callout)
+            .lineLimit(1)
+        }
     }
 }

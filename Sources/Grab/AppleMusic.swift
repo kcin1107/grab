@@ -104,14 +104,7 @@ enum AppleMusic {
 
     /// A public playlist, read from the data Apple's web page is built from.
     private static func playlist(_ link: Link) async throws -> Spotify.Collection {
-        var request = URLRequest(url: URL(string: link.url)!)
-        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
-                         forHTTPHeaderField: "User-Agent")
-        let (data, _) = try await URLSession.shared.data(for: request)
-        let html = String(decoding: data, as: UTF8.self)
-        guard let start = html.range(of: #"<script type="application/json" id="serialized-server-data">"#),
-              let end = html.range(of: "</script>", range: start.upperBound..<html.endIndex),
-              let root = try? JSONSerialization.jsonObject(with: Data(html[start.upperBound..<end.lowerBound].utf8)) as? [String: Any],
+        guard let root = try await WebPage.embeddedJSON(at: URL(string: link.url)!, scriptTag: #"<script type="application/json" id="serialized-server-data">"#) as? [String: Any],
               let page = ((root["data"] as? [[String: Any]])?.first?["data"] as? [String: Any]),
               let sections = page["sections"] as? [[String: Any]]
         else { throw Failure.unreadable }

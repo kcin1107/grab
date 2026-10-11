@@ -93,35 +93,9 @@ struct ConvertSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Only part of the file", isOn: $onlyPart.animation(.snappy(duration: 0.2)))
             if onlyPart {
-                HStack(spacing: 8) {
-                    Image(systemName: "scissors")
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                    Text("From")
-                    TextField("0:00", text: $partStart)
-                        .frame(width: 70)
-                        .accessibilityLabel("Clip start")
-                    Text("to")
-                    TextField("end", text: $partEnd)
-                        .frame(width: 70)
-                        .accessibilityLabel("Clip end")
-                    Group {
-                        if partIsInvalid {
-                            Label("Use times like 1:30, with the end after the start", systemImage: "exclamationmark.circle")
-                                .foregroundStyle(.red)
-                        } else if let clip {
-                            Text(clip.end == nil ? String(localized: "From \(Format.duration(clip.start)) to the end")
-                                                 : String(localized: "\(Format.duration((clip.end ?? 0) - clip.start)) clip"))
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("Times like 1:30 or 1:02:03").foregroundStyle(.tertiary)
-                        }
-                    }
-                    .font(.callout)
-                    .lineLimit(1)
-                }
-                .textFieldStyle(.roundedBorder)
-                .transition(.opacity)
+                ClipRangeFields(prefix: "From", start: $partStart, end: $partEnd, spacing: 8, fieldWidth: 70)
+                    .textFieldStyle(.roundedBorder)
+                    .transition(.opacity)
             }
         }
     }

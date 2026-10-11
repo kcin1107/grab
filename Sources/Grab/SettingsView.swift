@@ -295,7 +295,7 @@ private struct AdvancedSettings: View {
                         statusIcon(toolsUpdater.status)
                         if autoUpdate, HelperToolsUpdater.ffmpegInstalled, let version = toolsUpdater.ffmpegVersion {
                             Text(version).monospacedDigit()
-                        } else if !manager.ffmpegMissing {
+                        } else if !Tools.ffmpegMissing {
                             Text("Installed on this Mac").foregroundStyle(.secondary)
                         } else {
                             Text("Not found").foregroundStyle(.red)

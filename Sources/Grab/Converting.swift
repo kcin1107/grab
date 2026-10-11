@@ -113,41 +113,31 @@ enum Converting {
     }
 
     static func probe(_ file: URL, ffprobe: String) async -> MediaInfo? {
-        await Task.detached {
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: ffprobe)
-            p.arguments = ["-v", "error", "-show_entries",
+        guard let output = await Tools.run(ffprobe, ["-v", "error", "-show_entries",
                            "format=duration:stream=codec_type,codec_name,bit_rate,width,height,avg_frame_rate:stream_disposition=attached_pic",
-                           "-of", "json", file.path]
-            let pipe = Pipe()
-            p.standardOutput = pipe
-            p.standardError = FileHandle.nullDevice
-            guard (try? p.run()) != nil else { return nil }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            p.waitUntilExit()
-            guard p.terminationStatus == 0,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-            var info = MediaInfo()
-            info.duration = ((json["format"] as? [String: Any])?["duration"] as? String).flatMap(Double.init)
-            for stream in json["streams"] as? [[String: Any]] ?? [] {
-                let codec = stream["codec_name"] as? String
-                let isCover = ((stream["disposition"] as? [String: Any])?["attached_pic"] as? Int) == 1
-                switch stream["codec_type"] as? String {
-                case "video" where !isCover && info.videoCodec == nil:
-                    info.videoCodec = codec
-                    info.width = stream["width"] as? Int
-                    info.height = stream["height"] as? Int
-                    // "30000/1001" → 29.97
-                    let rate = (stream["avg_frame_rate"] as? String)?.split(separator: "/").compactMap { Double($0) }
-                    if let rate, rate.count == 2, rate[1] > 0 { info.fps = rate[0] / rate[1] }
-                case "audio" where info.audioCodec == nil:
-                    info.audioCodec = codec
-                    info.audioBitrate = (stream["bit_rate"] as? String).flatMap(Double.init)
-                default: break
-                }
+                           "-of", "json", file.path]),
+              output.status == 0,
+              let json = try? JSONSerialization.jsonObject(with: output.stdout) as? [String: Any] else { return nil }
+        var info = MediaInfo()
+        info.duration = ((json["format"] as? [String: Any])?["duration"] as? String).flatMap(Double.init)
+        for stream in json["streams"] as? [[String: Any]] ?? [] {
+            let codec = stream["codec_name"] as? String
+            let isCover = ((stream["disposition"] as? [String: Any])?["attached_pic"] as? Int) == 1
+            switch stream["codec_type"] as? String {
+            case "video" where !isCover && info.videoCodec == nil:
+                info.videoCodec = codec
+                info.width = stream["width"] as? Int
+                info.height = stream["height"] as? Int
+                // "30000/1001" → 29.97
+                let rate = (stream["avg_frame_rate"] as? String)?.split(separator: "/").compactMap { Double($0) }
+                if let rate, rate.count == 2, rate[1] > 0 { info.fps = rate[0] / rate[1] }
+            case "audio" where info.audioCodec == nil:
+                info.audioCodec = codec
+                info.audioBitrate = (stream["bit_rate"] as? String).flatMap(Double.init)
+            default: break
             }
-            return info.videoCodec == nil && info.audioCodec == nil ? nil : info
-        }.value
+        }
+        return info.videoCodec == nil && info.audioCodec == nil ? nil : info
     }
 
     // MARK: - Planning
@@ -342,5 +332,168 @@ enum Converting {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent("\(UUID().uuidString).png")
         return (try? png.write(to: url)) != nil ? url : nil
+    }
+}
+
+extension DownloadManager {
+    // MARK: - Converting files on this Mac
+
+    func chooseFilesToConvert() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.audiovisualContent]
+        panel.allowsMultipleSelection = true
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose videos or songs to convert.")
+        NSApp.activate()
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+        openConverter(for: panel.urls)
+        AppDelegate.openMainWindow?()
+    }
+
+    /// Videos and songs open the convert sheet.
+    func openConverter(for files: [URL]) {
+        filesToConvert = files.filter(Converting.isMedia)
+    }
+
+    func convert(_ files: [URL], preset: Conversion.Preset, percent: Int? = nil, resolution: Int? = nil,
+                 clip: ClipRange? = nil, gifWidth: Int? = nil) {
+        guard !files.isEmpty, let folder = destinationFolder(count: files.count) else { return }
+        let format = DownloadOptions.current
+        for file in files {
+            var options = DownloadOptions()
+            if preset == .audio {
+                options.kind = .audio
+                options.audioFormat = format.audioFormat
+                options.audioBitrate = format.audioBitrate
+            }
+            let item = DownloadItem(url: file.absoluteString, options: options, folder: folder)
+            item.title = file.deletingPathExtension().lastPathComponent
+            item.conversion = Conversion(source: file.path, preset: preset, percent: percent, resolution: resolution,
+                                         clip: clip, gifWidth: gifWidth)
+            item.clip = clip
+            item.splitChapters = false
+            items.insert(item, at: 0)
+            Task { item.thumbnail = await Converting.thumbnail(for: file) }
+        }
+        pump()
+    }
+
+    /// Length, codecs and size of a file, for the size estimate in the convert sheet.
+    func mediaInfo(for file: URL) async -> Converting.MediaInfo? {
+        guard let ffprobe = Tools.path("ffprobe") else { return nil }
+        return await Converting.probe(file, ffprobe: ffprobe)
+    }
+
+    func runConversion(_ item: DownloadItem, _ conversion: Conversion) {
+        let source = URL(fileURLWithPath: conversion.source)
+        guard FileManager.default.fileExists(atPath: source.path) else {
+            fail(item, Converting.Failure.sourceMissing.localizedDescription)
+            return
+        }
+        guard let ffmpeg = Tools.path("ffmpeg"), let ffprobe = Tools.path("ffprobe") else {
+            fail(item, Converting.Failure.noFFmpeg.localizedDescription)
+            return
+        }
+        item.phase = String(localized: "Reading file…")
+        Task {
+            let info = await Converting.probe(source, ffprobe: ffprobe)
+            guard item.state == .starting else { return }
+            guard var info else { fail(item, Converting.Failure.unreadable.localizedDescription); return }
+            item.duration = info.duration
+            // A part of the file: plan (and size estimates) for that part only.
+            var sourceSize = Self.size(of: source) ?? 0
+            var cut: [String] = []
+            var limit: [String] = []
+            if let clip = conversion.clip {
+                let full = info.duration ?? 0
+                let end = full > 0 ? min(clip.end ?? full, full) : clip.end
+                cut = ["-ss", String(clip.start)]
+                if let end {
+                    let length = max(end - clip.start, 0.1)
+                    limit = ["-t", String(length)]
+                    if full > 0 { sourceSize = Int64(Double(sourceSize) * length / full) }
+                    info.duration = length
+                }
+            }
+            item.sourceAudio = Self.describeAudio(codec: info.audioCodec, bitrate: info.audioBitrate.map { $0 / 1000 })
+            let plan: Converting.Plan
+            // Two-pass encodes keep their analysis here; removed when the conversion ends.
+            let passLog = FileManager.default.temporaryDirectory
+                .appendingPathComponent("grab-pass-\(UUID().uuidString)").path
+            do {
+                plan = try Converting.plan(conversion, options: item.options, info: info,
+                                           sourceExtension: source.pathExtension.lowercased(),
+                                           sourceSize: sourceSize, passLog: passLog)
+            } catch {
+                fail(item, error.localizedDescription)
+                return
+            }
+            let output = Converting.outputURL(folder: item.folder,
+                                              name: source.deletingPathExtension().lastPathComponent + plan.suffix,
+                                              fileExtension: plan.fileExtension)
+            let input = ["-hide_banner", "-nostdin", "-y", "-v", "error", "-progress", "pipe:1", "-nostats"]
+                + cut + ["-i", source.path] + limit
+            var passes = [input + plan.arguments + [output.path]]
+            if let first = plan.firstPass { passes.insert(input + first + ["/dev/null"], at: 0) }
+            Task {
+                let status = await runFFmpeg(item, ffmpeg: ffmpeg, passes: passes, duration: info.duration)
+                for suffix in ["-0.log", "-0.log.mbtree", "-0.log.temp", "-0.log.mbtree.temp"] {
+                    try? FileManager.default.removeItem(atPath: passLog + suffix)
+                }
+                if status == 0 {
+                    item.fileURL = output
+                } else {
+                    try? FileManager.default.removeItem(at: output)
+                }
+                finish(item, status: status)
+            }
+        }
+    }
+
+    /// Runs ffmpeg once per pass, with one progress bar across all of them. Returns the exit
+    /// status of the last pass that ran.
+    func runFFmpeg(_ item: DownloadItem, ffmpeg: String, passes: [[String]], duration: Double?) async -> Int32 {
+        let started = Date()
+        var status: Int32 = 0
+        for (index, arguments) in passes.enumerated() {
+            guard item.state == .starting || item.state == .downloading else { return 15 }
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: ffmpeg)
+            process.arguments = arguments
+            process.environment = Tools.environment
+            let out = Pipe(), err = Pipe()
+            process.standardOutput = out
+            process.standardError = err
+            item.process = process
+            let exited = Tools.exitStatus(of: process)
+            do {
+                try process.run()
+            } catch {
+                item.errorMessage = error.localizedDescription
+                return 1
+            }
+            item.phase = nil
+            let errors = Task.detached {
+                var last: String?
+                for await line in PipeLines.stream(err.fileHandleForReading) where !line.isEmpty { last = line }
+                return last
+            }
+            let count = Double(passes.count)
+            for await line in PipeLines.stream(out.fileHandleForReading) where line.hasPrefix("out_time_us=") {
+                guard let micro = Double(line.dropFirst("out_time_us=".count)), let duration, duration > 0,
+                      item.state == .starting || item.state == .downloading else { continue }
+                let progress = (Double(index) + min(max(micro / 1_000_000 / duration, 0), 1)) / count
+                item.state = .downloading
+                item.progress = progress
+                let elapsed = Date().timeIntervalSince(started)
+                item.eta = progress > 0.02 ? elapsed / progress - elapsed : nil
+            }
+            status = await exited()
+            if status != 0 {
+                if let last = await errors.value { item.errorMessage = last }
+                return status
+            }
+        }
+        return status
     }
 }
