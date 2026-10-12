@@ -15,6 +15,10 @@ Public videos only: Grab doesn't use browser cookies.
 
 macOS 26 or later, Apple silicon.
 
+## Install
+
+Download `Grab.zip` from the latest release, unzip it and move `Grab.app` to `/Applications`. Grab isn't notarized, so macOS blocks the first launch: open System Settings → Privacy & Security and click Open Anyway.
+
 ## Build
 
 ```bash
