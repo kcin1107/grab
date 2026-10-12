@@ -38,7 +38,7 @@ struct ContentView: View {
                 downloadList
             }
         }
-        .frame(minWidth: 560, minHeight: 400)
+        .frame(minWidth: 640, minHeight: 400)
         // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
         .safeAreaInset(edge: .top, spacing: 0) {
             if !manager.ffmpegAvailable || !manager.ytdlpAvailable {
@@ -50,7 +50,8 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Grab")
-        .navigationSubtitle(subtitle)
+        // Like Safari: no title in the toolbar, so the link field gets the room.
+        .toolbar(removing: .title)
         .toolbar { toolbarContent }
         .overlay { if isTargeted { dropHighlight } }
         .dropDestination(for: DroppedItem.self) { items, _ in handle(items) }
@@ -104,16 +105,6 @@ struct ContentView: View {
                 .environment(manager)
                 .onAppear { shownPickID = pick.id }
         }
-    }
-
-    /// Live status under the title, e.g. "3 downloading · 1 paused".
-    private var subtitle: String {
-        let active = manager.activeCount
-        let paused = manager.items.filter { $0.state == .paused }.count
-        var parts: [String] = []
-        if active > 0 { parts.append(String(localized: "\(active) downloading")) }
-        if paused > 0 { parts.append(String(localized: "\(paused) paused")) }
-        return parts.joined(separator: " · ")
     }
 
     private var duplicateTitle: String {
@@ -191,7 +182,8 @@ struct ContentView: View {
             .focused($fieldFocused)
             .onSubmit(submit)
             .onExitCommand { urlText = "" }
-            .frame(minWidth: 280, idealWidth: 480, maxWidth: 640)
+            .frame(minWidth: 220, idealWidth: 480, maxWidth: 640)
+            .layoutPriority(1)
     }
 
     /// "Download", "Download 3" for several links, or "Search" for words rather than a link.
