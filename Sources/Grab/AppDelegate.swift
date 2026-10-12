@@ -13,8 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     #if DEBUG
-    /// UI tests launch with `-GrabUITestWindowWidth <points>` to check the toolbar at a given window width
-    /// (neither a saved frame nor `-NSWindow Frame` can be overridden from the command line).
+    /// UI tests launch with `-GrabUITestWindowWidth <points>` to check the input bar at a given window
+    /// width. Neither a saved frame nor `-NSWindow Frame` can be set from the command line, and
+    /// XCUITest can't resize windows itself.
     private func sizeWindowForUITests() {
         let width = UserDefaults.standard.integer(forKey: "GrabUITestWindowWidth")
         guard width > 0 else { return }
