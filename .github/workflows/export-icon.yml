@@ -17,7 +17,7 @@ jobs:
     name: Export docs/icon.png
     runs-on: xcode-27
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build the app
         run: |
           set -o pipefail
@@ -41,7 +41,7 @@ jobs:
             sips --padToHeightWidth 512 512 build/icon.png --out docs/icon.png
           fi
           sips -g pixelWidth -g pixelHeight docs/icon.png
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: icon
           path: docs/icon.png
