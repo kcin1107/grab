@@ -35,7 +35,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 400)
-        .onGeometryChange(for: Bool.self) { $0.size.width < 760 } action: { isNarrow = $0 }
+        .onGeometryChange(for: Bool.self) { $0.size.width < 720 } action: { isNarrow = $0 }
         // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
         .safeAreaInset(edge: .top, spacing: 0) {
             if !manager.ffmpegAvailable || !manager.ytdlpAvailable {
@@ -179,7 +179,7 @@ struct ContentView: View {
             .focused($fieldFocused)
             .onSubmit(submit)
             .onExitCommand { urlText = "" }
-            .frame(minWidth: 220, idealWidth: 480, maxWidth: 640)
+            .frame(minWidth: 220, maxWidth: .infinity)
             .layoutPriority(1)
     }
 
@@ -303,6 +303,13 @@ struct ContentView: View {
 
     // MARK: - Toolbar
 
+    private func submitButton(@ViewBuilder label: () -> some View) -> some View {
+        Button(action: submit, label: label)
+            .buttonStyle(.glassProminent)
+            .disabled(!(isValid || isSearch))
+            .help(isSearch ? String(localized: "Search YouTube") : String(localized: "Download"))
+    }
+
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
@@ -312,18 +319,19 @@ struct ContentView: View {
             FormatMenu()
         }
         ToolbarSpacer(.fixed, placement: .primaryAction)
-        ToolbarItem(placement: .primaryAction) {
-            Button(action: submit) {
-                if isNarrow {
+        // Two separate items: the toolbar sizes an item once, so switching what one item shows
+        // would leave "Download" squeezed into the icon's width.
+        if isNarrow {
+            ToolbarItem(id: "submit-icon", placement: .primaryAction) {
+                submitButton {
                     Label(submitTitle, systemImage: isSearch ? "magnifyingglass" : "arrow.down")
                         .labelStyle(.iconOnly)
-                } else {
-                    Text(submitTitle)
                 }
             }
-                .buttonStyle(.glassProminent)
-                .disabled(!(isValid || isSearch))
-                .help(isSearch ? String(localized: "Search YouTube") : String(localized: "Download"))
+        } else {
+            ToolbarItem(id: "submit-text", placement: .primaryAction) {
+                submitButton { Text(submitTitle).fixedSize() }
+            }
         }
     }
 }
