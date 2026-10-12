@@ -3,20 +3,16 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DownloadManager.self) private var manager
-    @Environment(\.openURL) private var openURL
     @Environment(\.appearsActive) private var appearsActive
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(HelperToolsUpdater.self) private var toolsUpdater
     @Environment(Updater.self) private var updater
-    @AppStorage(Prefs.downloadPath) private var downloadPath = ""
     @AppStorage(Prefs.autoUpdate) private var autoUpdate = true
     @State private var urlText = ""
     @State private var selection: Set<DownloadItem.ID> = []
     @State private var shownPickID: PlaylistPick.ID?
-    @State private var clipping = false
-    @State private var showingClip = false
-    @State private var clipStart = ""
-    @State private var clipEnd = ""
+    /// Narrow windows show the Download button as an icon, so the link field keeps its room.
+    @State private var isNarrow = false
     @State private var previewURL: URL?
     @State private var isTargeted = false
     @FocusState private var fieldFocused: Bool
@@ -28,7 +24,7 @@ struct ContentView: View {
     private var isValid: Bool { isMultiple || Links.validated(trimmed) != nil }
 
     /// Words rather than a link: Return searches YouTube.
-    private var isSearch: Bool { !trimmed.isEmpty && !isValid && !clipping }
+    private var isSearch: Bool { !trimmed.isEmpty && !isValid }
 
     var body: some View {
         Group {
@@ -39,6 +35,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 400)
+        .onGeometryChange(for: Bool.self) { $0.size.width < 760 } action: { isNarrow = $0 }
         // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
         .safeAreaInset(edge: .top, spacing: 0) {
             if !manager.ffmpegAvailable || !manager.ytdlpAvailable {
@@ -193,27 +190,6 @@ struct ContentView: View {
         return String(localized: "Download")
     }
 
-    // MARK: - Clip
-
-    /// The range typed in the clip popover, or nil when it isn't valid (or not set).
-    private var clip: ClipRange? { ClipRange.from(start: clipStart, end: clipEnd) }
-
-    private var clipToggle: some View {
-        Toggle(isOn: Binding(get: { clipping },
-                             set: { clipping = $0; showingClip = $0 })) {
-            Label("Clip", systemImage: "scissors")
-        }
-        .toggleStyle(.button)
-        .disabled(isMultiple)
-        .help(clipping ? "Download the whole video" : "Download only part of the video")
-        .popover(isPresented: $showingClip, arrowEdge: .bottom) {
-            ClipRangeFields(prefix: "Clip from", start: $clipStart, end: $clipEnd)
-                .textFieldStyle(.roundedBorder)
-                .padding()
-                .onSubmit(submit)
-        }
-    }
-
     private func submit() {
         if isSearch {
             manager.startSearch(trimmed)
@@ -222,13 +198,6 @@ struct ContentView: View {
         guard isValid else { return }
         if isMultiple {
             manager.add(fieldLinks)
-        } else if clipping {
-            guard let clip else { MacPlatform.beep(); return }
-            manager.add(trimmed, clip: clip)
-            clipping = false
-            showingClip = false
-            clipStart = ""
-            clipEnd = ""
         } else {
             manager.add(trimmed)
         }
@@ -339,24 +308,21 @@ struct ContentView: View {
         ToolbarItem(placement: .principal) {
             linkField
         }
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             FormatMenu()
-            clipToggle
         }
         ToolbarSpacer(.fixed, placement: .primaryAction)
         ToolbarItem(placement: .primaryAction) {
-            Button {
-                openURL(URL(fileURLWithPath: downloadPath, isDirectory: true))
-            } label: {
-                Label("Show Downloads Folder", systemImage: "folder")
+            Button(action: submit) {
+                if isNarrow {
+                    Label(submitTitle, systemImage: isSearch ? "magnifyingglass" : "arrow.down")
+                        .labelStyle(.iconOnly)
+                } else {
+                    Text(submitTitle)
+                }
             }
-            .help("Open \((downloadPath as NSString).abbreviatingWithTildeInPath)")
-        }
-        ToolbarSpacer(.fixed, placement: .primaryAction)
-        ToolbarItem(placement: .primaryAction) {
-            Button(submitTitle, action: submit)
                 .buttonStyle(.glassProminent)
-                .disabled(!(isValid || isSearch) || (clipping && clip == nil))
+                .disabled(!(isValid || isSearch))
                 .help(isSearch ? String(localized: "Search YouTube") : String(localized: "Download"))
         }
     }
