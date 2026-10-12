@@ -5,7 +5,7 @@ Grab is a SwiftUI app for macOS 26 and later on Apple silicon. It runs yt-dlp, f
 ## Project
 
 - `Grab.xcodeproj`: one app target `Grab` (bundle ID `com.nickringelmann.grab`), a unit test target `GrabTests` and a UI test target `GrabUITests`, all in the shared scheme `Grab`. Folders are synchronized groups, so new files are picked up without editing the project.
-- Build settings: Swift 6 language mode, `MACOSX_DEPLOYMENT_TARGET = 26.0`, `ARCHS = arm64`, hardened runtime, no app sandbox (Grab has to run yt-dlp and ffmpeg), ad-hoc signing.
+- Build settings: Swift 6 language mode, `MACOSX_DEPLOYMENT_TARGET = 26.0`, `ARCHS = arm64`, hardened runtime, no app sandbox (Grab has to run yt-dlp and ffmpeg), team `56JJ9GRL32`. Xcode builds are signed ad hoc; releases are signed with Developer ID by `build-app.sh --sign`.
 - Version: `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the target's build settings; `Resources/Info.plist` reads them.
 - No package dependencies.
 
@@ -15,7 +15,7 @@ Grab is a SwiftUI app for macOS 26 and later on Apple silicon. It runs yt-dlp, f
 - `Resources`: `Info.plist`, `AppIcon.icon` (Icon Composer, three glass layers) and `Localizable.xcstrings` (English plus de, es, fr, it, ja, ko, nl, pt-BR, zh-Hans).
 - `Tests/GrabTests`: Swift Testing unit tests for links, yt-dlp arguments and output parsing, path containment and file naming.
 - `Tests/GrabUITests`: XCUITest checks that the input bar fills the window at several widths.
-- `scripts`: `build-app.sh` (Release build into `build/Grab.app`, `--install` copies it to `/Applications`) and `update-strings.sh` (syncs the string catalog with the code).
+- `scripts`: `build-app.sh` (Release build into `build/Grab.app`; `--sign "<identity>"` signs it with a Developer ID, `--install` copies it to `/Applications`), `notarize.sh` (notarizes and staples `build/Grab.app`, then zips it as `build/Grab.zip`) and `update-strings.sh` (syncs the string catalog with the code).
 - `docs/icon.png`: the rendered icon for the README. After changing the icon, refresh it from a build: `sips -s format png -z 512 512 build/Grab.app/Contents/Resources/AppIcon.icns --out docs/icon.png`.
 
 ## Sources
@@ -39,4 +39,8 @@ Every yt-dlp run gets `--ignore-config --no-plugin-dirs`. Tool downloads are che
 
 ## Releases
 
-Tags are `vX.Y.Z` on `main`. A release carries `Grab.zip`, the `build/Grab.app` from `build-app.sh`, zipped with `ditto`.
+Tags are `vX.Y.Z` on `main`. A release carries `Grab.zip`, signed and notarized:
+
+1. `zsh scripts/build-app.sh --sign "Developer ID Application: Nick Ringelmann (56JJ9GRL32)"`
+2. `zsh scripts/notarize.sh` (uses the keychain profile `grab-notary`, stored once with `xcrun notarytool store-credentials`)
+3. Upload `build/Grab.zip` to the release.

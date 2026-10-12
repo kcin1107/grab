@@ -1,13 +1,16 @@
 #!/bin/zsh
-# Builds Grab.app into ./build. Pass --install to copy it to /Applications.
+# Builds Grab.app into ./build. Pass --install to copy it to /Applications, and --sign "<identity>"
+# to sign it with a Developer ID (with a secure timestamp, as notarization needs) instead of ad hoc.
 set -euo pipefail
 cd "${0:A:h:h}"
 
 INSTALL=""
+IDENTITY="-"
 while (( $# )); do
   case "$1" in
     --install) INSTALL=1; shift ;;
-    *) echo "usage: build-app.sh [--install]" >&2; exit 1 ;;
+    --sign) IDENTITY="$2"; shift 2 ;;
+    *) echo "usage: build-app.sh [--install] [--sign <identity>]" >&2; exit 1 ;;
   esac
 done
 DERIVED_DATA="$PWD/build/DerivedData"
@@ -19,7 +22,11 @@ rm -rf "$APP"
 ditto "$DERIVED_DATA/Build/Products/Release/Grab.app" "$APP"
 
 # Hardened runtime: blocks code injection (DYLD_* variables, unsigned libraries) into Grab.
-codesign --force --options runtime --sign - "$APP"
+if [[ "$IDENTITY" == "-" ]]; then
+  codesign --force --options runtime --sign - "$APP"
+else
+  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+fi
 echo "Built $APP"
 
 if [[ -n "$INSTALL" ]]; then
