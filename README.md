@@ -18,11 +18,3 @@ macOS 26 or later, Apple silicon.
 ## Install
 
 Download `Grab.zip` from the latest release, unzip it and move `Grab.app` to `/Applications`. Grab isn't notarized, so macOS blocks the first launch: open System Settings → Privacy & Security and click Open Anyway.
-
-## Build
-
-```bash
-zsh scripts/build-app.sh
-```
-
-The app lands in `build/Grab.app`. Add `--install` to copy it to `/Applications`.
