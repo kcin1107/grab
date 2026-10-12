@@ -8,3 +8,7 @@ dist/
 xcuserdata/
 DerivedData/
 .swiftpm/
+
+# Local agent instructions
+AGENTS.md
+CLAUDE.md
