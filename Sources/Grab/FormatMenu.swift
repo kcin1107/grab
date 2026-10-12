@@ -83,6 +83,7 @@ struct FormatMenu: View {
         } label: {
             Label(format.options.label, systemImage: format.options.symbol)
                 .labelStyle(.titleAndIcon)
+                .foregroundStyle(.primary)
                 .contentTransition(.numericText())
         }
         .menuIndicator(.visible)
