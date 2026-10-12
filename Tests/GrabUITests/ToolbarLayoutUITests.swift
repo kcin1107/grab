@@ -28,8 +28,8 @@ final class ToolbarLayoutUITests: XCTestCase {
         wait(for: [resized], timeout: 10)
         Thread.sleep(forTimeInterval: 0.5)
 
-        let field = window.toolbars.textFields["linkField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 10), "Link field is not in the toolbar at \(width) pt")
+        let field = window.textFields["linkField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "Link field is missing at \(width) pt")
         XCTAssertTrue(field.isHittable, "Link field isn't hittable at \(width) pt")
 
         let windowWidth = window.frame.width

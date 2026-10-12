@@ -13,11 +13,6 @@ struct ContentView: View {
     @State private var shownPickID: PlaylistPick.ID?
     /// Narrow windows show the Download button as an icon, so the link field keeps its room.
     @State private var isNarrow = false
-    /// The toolbar doesn't stretch items, so the input row (field, format menu, Download) is one
-    /// item sized to the window, the way Safari's address field fills the toolbar.
-    @State private var windowWidth: CGFloat = 0
-    /// Download's height, so the field and menu capsules match it.
-    @State private var controlHeight: CGFloat = 32
     @State private var previewURL: URL?
     @State private var isTargeted = false
     @FocusState private var fieldFocused: Bool
@@ -40,10 +35,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 400)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
-            windowWidth = $0
-            isNarrow = $0 < 720
-        }
+        .onGeometryChange(for: Bool.self) { $0.size.width < 720 } action: { isNarrow = $0 }
         // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
         .safeAreaInset(edge: .top, spacing: 0) {
             if !manager.ffmpegAvailable || !manager.ytdlpAvailable {
@@ -54,10 +46,10 @@ struct ContentView: View {
                 }
             }
         }
+        // The link field, format menu and Download in a bar under the toolbar: there the field
+        // can fill the width, which toolbar items can't do in SwiftUI.
+        .safeAreaBar(edge: .top) { inputBar }
         .navigationTitle("Grab")
-        // Like Safari: no title in the toolbar, so the link field gets the room.
-        .toolbar(removing: .title)
-        .toolbar { toolbarContent }
         .overlay { if isTargeted { dropHighlight } }
         .dropDestination(for: DroppedItem.self) { items, _ in handle(items) }
         .onDropSessionUpdated { session in
@@ -183,21 +175,22 @@ struct ContentView: View {
 
     private var linkField: some View {
         TextField("Paste a link or search YouTube", text: $urlText)
-            .textFieldStyle(.plain)
-            .padding(.horizontal, 12)
-            .frame(height: controlHeight)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .textFieldStyle(.roundedBorder)
             .accessibilityIdentifier("linkField")
             .focused($fieldFocused)
             .onSubmit(submit)
             .onExitCommand { urlText = "" }
-            .frame(maxWidth: .infinity)
     }
 
-    /// The window minus the window buttons and the toolbar's margins. Inside the row the field
-    /// takes whatever the menu and Download button leave.
-    private var inputRowWidth: CGFloat {
-        max(420, windowWidth - 96 - 12)
+    private var inputBar: some View {
+        HStack(spacing: 8) {
+            linkField
+            FormatMenu()
+            submitButton
+        }
+        .controlSize(.large)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
     /// "Download", "Download 3" for several links, or "Search" for words rather than a link.
@@ -318,8 +311,6 @@ struct ContentView: View {
             .allowsHitTesting(false)
     }
 
-    // MARK: - Toolbar
-
     private var submitButton: some View {
         Button(action: submit) {
             if isNarrow {
@@ -330,38 +321,9 @@ struct ContentView: View {
             }
         }
         .accessibilityIdentifier("submitButton")
-        .buttonStyle(.glassProminent)
+        .buttonStyle(.borderedProminent)
         .disabled(!(isValid || isSearch))
         .help(isSearch ? String(localized: "Search YouTube") : String(localized: "Download"))
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if $0 > 0 { controlHeight = $0 } }
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        // One item rather than three, rebuilt whenever the window's width changes (in 8 pt
-        // steps): the toolbar measures an item once, when it's created, so separate or resized
-        // items kept stale sizes and spilled into the overflow menu.
-        ToolbarItem(id: "input-\(Int(inputRowWidth / 8))", placement: .navigation) {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 8) {
-                    linkField
-                    // Plain style inside its own capsule: the toolbar's menu styles drop the
-                    // capsule or draw the label white while the window is active.
-                    FormatMenu()
-                        .menuStyle(.button)
-                        .buttonStyle(.plain)
-                        .fixedSize()
-                        .padding(.horizontal, 12)
-                        .frame(height: controlHeight)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                    submitButton
-                        .fixedSize()
-                }
-            }
-            .controlSize(.large)
-            .frame(width: inputRowWidth)
-        }
-        .sharedBackgroundVisibility(.hidden)
     }
 }
 
