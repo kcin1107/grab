@@ -13,6 +13,11 @@ struct ContentView: View {
     @State private var shownPickID: PlaylistPick.ID?
     /// Narrow windows show the Download button as an icon, so the link field keeps its room.
     @State private var isNarrow = false
+    /// The toolbar doesn't stretch items, so the link field is sized to the room that's left, the
+    /// way Safari's address field fills the toolbar. Measured as the window and items lay out.
+    @State private var windowWidth: CGFloat = 0
+    @State private var menuWidth: CGFloat = 0
+    @State private var submitWidth: CGFloat = 0
     @State private var previewURL: URL?
     @State private var isTargeted = false
     @FocusState private var fieldFocused: Bool
@@ -35,7 +40,10 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 400)
-        .onGeometryChange(for: Bool.self) { $0.size.width < 720 } action: { isNarrow = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+            windowWidth = $0
+            isNarrow = $0 < 720
+        }
         // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
         .safeAreaInset(edge: .top, spacing: 0) {
             if !manager.ffmpegAvailable || !manager.ytdlpAvailable {
@@ -179,8 +187,15 @@ struct ContentView: View {
             .focused($fieldFocused)
             .onSubmit(submit)
             .onExitCommand { urlText = "" }
-            .frame(minWidth: 220, maxWidth: .infinity)
+            .frame(width: fieldWidth)
             .layoutPriority(1)
+    }
+
+    /// What's left after the window buttons, the menu, the Download button and the spacing between
+    /// them (the toolbar lays everything out from the leading edge on macOS).
+    private var fieldWidth: CGFloat {
+        let fixed: CGFloat = 96 + 9 + 9 + 10
+        return max(200, windowWidth - menuWidth - submitWidth - fixed)
     }
 
     /// "Download", "Download 3" for several links, or "Search" for words rather than a link.
@@ -308,15 +323,17 @@ struct ContentView: View {
             .buttonStyle(.glassProminent)
             .disabled(!(isValid || isSearch))
             .help(isSearch ? String(localized: "Search YouTube") : String(localized: "Download"))
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 > 0 { submitWidth = $0 } }
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
+        ToolbarItem(placement: .navigation) {
             linkField
         }
         ToolbarItem(placement: .primaryAction) {
             FormatMenu()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 > 0 { menuWidth = $0 } }
         }
         ToolbarSpacer(.fixed, placement: .primaryAction)
         // Two separate items: the toolbar sizes an item once, so switching what one item shows
