@@ -16,7 +16,7 @@ Grab is a SwiftUI app for macOS 26 and later on Apple silicon. It runs yt-dlp, f
 - `Tests/GrabTests`: Swift Testing unit tests for links, yt-dlp arguments and output parsing, path containment and file naming.
 - `Tests/GrabUITests`: XCUITest checks that the input bar fills the window at several widths.
 - `scripts`: `build-app.sh` (Release build into `build/Grab.app`, `--install` copies it to `/Applications`) and `update-strings.sh` (syncs the string catalog with the code).
-- `docs/icon.png`: the rendered icon for the README.
+- `docs/icon.png`: the rendered icon for the README. After changing the icon, refresh it from a build: `sips -s format png -z 512 512 build/Grab.app/Contents/Resources/AppIcon.icns --out docs/icon.png`.
 
 ## Sources
 
@@ -35,8 +35,7 @@ Every yt-dlp run gets `--ignore-config --no-plugin-dirs`. Tool downloads are che
 
 ## CI
 
-- `.github/workflows/xcode-build-analyze.yml`: builds and analyzes the `Grab` scheme (Debug, unsigned) on pushes and pull requests to `main`.
-- `.github/workflows/export-icon.yml`: on pushes to other branches that change `AppIcon.icon`, renders `docs/icon.png` and commits it as `github-actions[bot]`.
+`.github/workflows/xcode-build-analyze.yml` builds and analyzes the `Grab` scheme (Debug, unsigned) on pushes and pull requests to `main`.
 
 ## Releases
 
