@@ -1,92 +1,449 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
-	classes = {};
-	objectVersion = 77;
-	objects = {
-		54312BDA66374B82658E68C2 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate.swift"; sourceTree = "<group>"; };
-		C191B72AECD1CE5F6A3BBBEF = { isa = PBXBuildFile; fileRef = 54312BDA66374B82658E68C2; };
-		74245F39F84F0D8C5876230E = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel.swift"; sourceTree = "<group>"; };
-		D4EE53B7F759D021B66CD09E = { isa = PBXBuildFile; fileRef = 74245F39F84F0D8C5876230E; };
-		B465A791A6A76B4030D4F4D2 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleMusic.swift"; sourceTree = "<group>"; };
-		FC36F1DEEB1E3AC8891720E1 = { isa = PBXBuildFile; fileRef = B465A791A6A76B4030D4F4D2; };
-		A61F6429463467E7C5E44D64 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Clip.swift"; sourceTree = "<group>"; };
-		FDEB575448804CAE86122F7B = { isa = PBXBuildFile; fileRef = A61F6429463467E7C5E44D64; };
-		0EE31DB3EA74CBBC4A5623DB = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CodeSignature.swift"; sourceTree = "<group>"; };
-		1AC1D4B16E2FFACB6CB19AEA = { isa = PBXBuildFile; fileRef = 0EE31DB3EA74CBBC4A5623DB; };
-		D042EAA2A6C5F66F70CD6063 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView.swift"; sourceTree = "<group>"; };
-		D0169B80645B3D902D388F95 = { isa = PBXBuildFile; fileRef = D042EAA2A6C5F66F70CD6063; };
-		7353E748F4B2AA3A67BF89CF = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ConvertSheet.swift"; sourceTree = "<group>"; };
-		64F00C29C86DFC3145AC8B3F = { isa = PBXBuildFile; fileRef = 7353E748F4B2AA3A67BF89CF; };
-		A927D4BDC10F4FEA853D632F = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Converting.swift"; sourceTree = "<group>"; };
-		1A2C30D0907EDE16E930286C = { isa = PBXBuildFile; fileRef = A927D4BDC10F4FEA853D632F; };
-		EAB5D2723F0129A66AC7E247 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadManager.swift"; sourceTree = "<group>"; };
-		FC2F185CF2AF982C713BEAED = { isa = PBXBuildFile; fileRef = EAB5D2723F0129A66AC7E247; };
-		9592AD38BF692B037153F94A = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadRow.swift"; sourceTree = "<group>"; };
-		5BFFCFDC3245D502EACD7751 = { isa = PBXBuildFile; fileRef = 9592AD38BF692B037153F94A; };
-		A10ACD9885AF9E9F30CC4D1E = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadSelection.swift"; sourceTree = "<group>"; };
-		D50046970A959D9B3B97D0BC = { isa = PBXBuildFile; fileRef = A10ACD9885AF9E9F30CC4D1E; };
-		EBC950B2737F8D77E49EB5B5 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileRequests.swift"; sourceTree = "<group>"; };
-		E82D6B1E1CC087DDF805E760 = { isa = PBXBuildFile; fileRef = EBC950B2737F8D77E49EB5B5; };
-		E28B449E0070B087E526A601 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FormatMenu.swift"; sourceTree = "<group>"; };
-		60F389DB42D201ABB169B1DF = { isa = PBXBuildFile; fileRef = E28B449E0070B087E526A601; };
-		79C3B438A4B245FBE4CD8BAE = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GrabApp.swift"; sourceTree = "<group>"; };
-		B7C9471232E5B4B8B558D952 = { isa = PBXBuildFile; fileRef = 79C3B438A4B245FBE4CD8BAE; };
-		80F8E195CA5CFE650E442DE2 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HelperToolsUpdater.swift"; sourceTree = "<group>"; };
-		3885E49E47F1803170E0CAF0 = { isa = PBXBuildFile; fileRef = 80F8E195CA5CFE650E442DE2; };
-		4580EE10501EF0BD75D63FFA = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "History.swift"; sourceTree = "<group>"; };
-		9FEE0A547D0042AEAB704F04 = { isa = PBXBuildFile; fileRef = 4580EE10501EF0BD75D63FFA; };
-		14D597200BF55154E64BE6C2 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Links.swift"; sourceTree = "<group>"; };
-		FE14E19E911BED709143C21E = { isa = PBXBuildFile; fileRef = 14D597200BF55154E64BE6C2; };
-		500E208FF4D2EC2BCA851869 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacPlatform.swift"; sourceTree = "<group>"; };
-		B7A8B6865FEF4EC29A735439 = { isa = PBXBuildFile; fileRef = 500E208FF4D2EC2BCA851869; };
-		FC370A6ECCEE12C4486ECF86 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models.swift"; sourceTree = "<group>"; };
-		4E9DF7C7A6F51102197F7DDC = { isa = PBXBuildFile; fileRef = FC370A6ECCEE12C4486ECF86; };
-		C209D51E5505FFBEFE445A65 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Organizing.swift"; sourceTree = "<group>"; };
-		7DF46AA3C3F261855E089BD8 = { isa = PBXBuildFile; fileRef = C209D51E5505FFBEFE445A65; };
-		42A4FDB75FFDB4CCBCA7D36F = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Playlist.swift"; sourceTree = "<group>"; };
-		FC0CD2FE6C0D5FB62D5F685D = { isa = PBXBuildFile; fileRef = 42A4FDB75FFDB4CCBCA7D36F; };
-		F143FEE0D0CC4630129929AE = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaylistPickerView.swift"; sourceTree = "<group>"; };
-		560CD352FE3FC8125E05AEC8 = { isa = PBXBuildFile; fileRef = F143FEE0D0CC4630129929AE; };
-		68146665002155CA6B9C565E = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PostProcessing.swift"; sourceTree = "<group>"; };
-		058F4650140C36F3B897950F = { isa = PBXBuildFile; fileRef = 68146665002155CA6B9C565E; };
-		46DE201B733EA433450CC61C = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Prefs.swift"; sourceTree = "<group>"; };
-		6164EDED1D4FF3E0140B068A = { isa = PBXBuildFile; fileRef = 46DE201B733EA433450CC61C; };
-		4D31AFBB2510326BC1959207 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Search.swift"; sourceTree = "<group>"; };
-		CCF59CEB26CD801511C2B587 = { isa = PBXBuildFile; fileRef = 4D31AFBB2510326BC1959207; };
-		FD73C0FD8F5DF76CBD948089 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SearchResultsView.swift"; sourceTree = "<group>"; };
-		5E3D92B0B3CE86801DCD18D6 = { isa = PBXBuildFile; fileRef = FD73C0FD8F5DF76CBD948089; };
-		08CE524D34197318578C273B = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView.swift"; sourceTree = "<group>"; };
-		2728BFD82D3207239CDB09DA = { isa = PBXBuildFile; fileRef = 08CE524D34197318578C273B; };
-		A3DF55B7EA37176E388DEE0B = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Spotify.swift"; sourceTree = "<group>"; };
-		8EC3C842CDF4D6E5471C49DE = { isa = PBXBuildFile; fileRef = A3DF55B7EA37176E388DEE0B; };
-		1EBA8D1BAD36AC99A67B2D57 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Tools.swift"; sourceTree = "<group>"; };
-		7F34F2FBA27AE13CE6DAA4B2 = { isa = PBXBuildFile; fileRef = 1EBA8D1BAD36AC99A67B2D57; };
-		A35C43E82D4FDEEABFC04E1B = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Updater.swift"; sourceTree = "<group>"; };
-		A31D267DC6DE443A7A06DC4C = { isa = PBXBuildFile; fileRef = A35C43E82D4FDEEABFC04E1B; };
-		B217E7FFED3F64D666BA39A8 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "YtDlp.swift"; sourceTree = "<group>"; };
-		05E880ECAE68A0A3BC29F0EE = { isa = PBXBuildFile; fileRef = B217E7FFED3F64D666BA39A8; };
-		5125EB623B0CBE798809C250 = { isa = PBXFileReference; lastKnownFileType = folder.icon; path = "AppIcon.icon"; sourceTree = "<group>"; };
-		5DEA813684223A6679FB6B7D = { isa = PBXBuildFile; fileRef = 5125EB623B0CBE798809C250; };
-		DDFDA7D0CEFB8C6B7C53EE6A = { isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "Localizable.xcstrings"; sourceTree = "<group>"; };
-		1ABB0BD182343F4D3D34C97F = { isa = PBXBuildFile; fileRef = DDFDA7D0CEFB8C6B7C53EE6A; };
-		7B594B6DB375E1BF3F23CDD6 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
-		38A007151ABE87CC01A5B6E9 = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Grab.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B28B7AF69320201D1CF206EB = { isa = PBXGroup; children = (BCE16DD0260827ECF338C787, 0189424A5A60FED329FA868E, FBDC4F23F93125BBEEAE800C, ); sourceTree = "<group>"; };
-		BCE16DD0260827ECF338C787 = { isa = PBXGroup; children = (54312BDA66374B82658E68C2, 74245F39F84F0D8C5876230E, B465A791A6A76B4030D4F4D2, A61F6429463467E7C5E44D64, 0EE31DB3EA74CBBC4A5623DB, D042EAA2A6C5F66F70CD6063, 7353E748F4B2AA3A67BF89CF, A927D4BDC10F4FEA853D632F, EAB5D2723F0129A66AC7E247, 9592AD38BF692B037153F94A, A10ACD9885AF9E9F30CC4D1E, EBC950B2737F8D77E49EB5B5, E28B449E0070B087E526A601, 79C3B438A4B245FBE4CD8BAE, 80F8E195CA5CFE650E442DE2, 4580EE10501EF0BD75D63FFA, 14D597200BF55154E64BE6C2, 500E208FF4D2EC2BCA851869, FC370A6ECCEE12C4486ECF86, C209D51E5505FFBEFE445A65, 42A4FDB75FFDB4CCBCA7D36F, F143FEE0D0CC4630129929AE, 68146665002155CA6B9C565E, 46DE201B733EA433450CC61C, 4D31AFBB2510326BC1959207, FD73C0FD8F5DF76CBD948089, 08CE524D34197318578C273B, A3DF55B7EA37176E388DEE0B, 1EBA8D1BAD36AC99A67B2D57, A35C43E82D4FDEEABFC04E1B, B217E7FFED3F64D666BA39A8, ); path = Sources/Grab; sourceTree = "<group>"; };
-		0189424A5A60FED329FA868E = { isa = PBXGroup; children = (5125EB623B0CBE798809C250, DDFDA7D0CEFB8C6B7C53EE6A, 7B594B6DB375E1BF3F23CDD6, ); path = Resources; sourceTree = "<group>"; };
-		FBDC4F23F93125BBEEAE800C = { isa = PBXGroup; children = (38A007151ABE87CC01A5B6E9, ); name = Products; sourceTree = "<group>"; };
-		4E57AE888889001C06A4F7E8 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C191B72AECD1CE5F6A3BBBEF, D4EE53B7F759D021B66CD09E, FC36F1DEEB1E3AC8891720E1, FDEB575448804CAE86122F7B, 1AC1D4B16E2FFACB6CB19AEA, D0169B80645B3D902D388F95, 64F00C29C86DFC3145AC8B3F, 1A2C30D0907EDE16E930286C, FC2F185CF2AF982C713BEAED, 5BFFCFDC3245D502EACD7751, D50046970A959D9B3B97D0BC, E82D6B1E1CC087DDF805E760, 60F389DB42D201ABB169B1DF, B7C9471232E5B4B8B558D952, 3885E49E47F1803170E0CAF0, 9FEE0A547D0042AEAB704F04, FE14E19E911BED709143C21E, B7A8B6865FEF4EC29A735439, 4E9DF7C7A6F51102197F7DDC, 7DF46AA3C3F261855E089BD8, FC0CD2FE6C0D5FB62D5F685D, 560CD352FE3FC8125E05AEC8, 058F4650140C36F3B897950F, 6164EDED1D4FF3E0140B068A, CCF59CEB26CD801511C2B587, 5E3D92B0B3CE86801DCD18D6, 2728BFD82D3207239CDB09DA, 8EC3C842CDF4D6E5471C49DE, 7F34F2FBA27AE13CE6DAA4B2, A31D267DC6DE443A7A06DC4C, 05E880ECAE68A0A3BC29F0EE, ); runOnlyForDeploymentPostprocessing = 0; };
-		D6C9E8A172005E68A1DD674F = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (5DEA813684223A6679FB6B7D, 1ABB0BD182343F4D3D34C97F, ); runOnlyForDeploymentPostprocessing = 0; };
-		69BE8A4D8E4D9DA4E7DB3928 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		0E8A3AD980EC179856012B7E = { isa = PBXNativeTarget; buildConfigurationList = F497FD0CF9CA1625C4A860DE; buildPhases = (4E57AE888889001C06A4F7E8, 69BE8A4D8E4D9DA4E7DB3928, D6C9E8A172005E68A1DD674F, ); buildRules = (); dependencies = (); name = Grab; productName = Grab; productReference = 38A007151ABE87CC01A5B6E9; productType = "com.apple.product-type.application"; };
-		98F54143AB4E86B28C3AFEE0 = { isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = YES; LastSwiftUpdateCheck = 2600; LastUpgradeCheck = 2600; }; buildConfigurationList = 49EA05A46B1A86EA7E413B43; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base, de, es, fr, it, ja, ko, nl, "pt-BR", "zh-Hans", ); mainGroup = B28B7AF69320201D1CF206EB; productRefGroup = FBDC4F23F93125BBEEAE800C; projectDirPath = ""; projectRoot = ""; targets = (0E8A3AD980EC179856012B7E, ); };
-		89E1FD6268CC0F221A2BE178 = { isa = XCBuildConfiguration; buildSettings = { ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_VERSION = 6.0; DEBUG_INFORMATION_FORMAT = dwarf; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_COMPILATION_MODE = singlefile; ENABLE_TESTABILITY = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; }; name = Debug; };
-		E6DE6C99132752C914FEF632 = { isa = XCBuildConfiguration; buildSettings = { ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_VERSION = 6.0; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_COMPILATION_MODE = wholemodule; ENABLE_TESTABILITY = NO; }; name = Release; };
-		49EA05A46B1A86EA7E413B43 = { isa = XCConfigurationList; buildConfigurations = (89E1FD6268CC0F221A2BE178, E6DE6C99132752C914FEF632, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		7082CC0B6FC1282FCEABD07A = { isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = "-"; ENABLE_APP_SANDBOX = NO; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Resources/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; }; name = Debug; };
-		639A7CA24D39909E713B47F7 = { isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = "-"; ENABLE_APP_SANDBOX = NO; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Resources/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; }; name = Release; };
-		F497FD0CF9CA1625C4A860DE = { isa = XCConfigurationList; buildConfigurations = (7082CC0B6FC1282FCEABD07A, 639A7CA24D39909E713B47F7, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+	classes = {
 	};
-	rootObject = 98F54143AB4E86B28C3AFEE0;
+	objectVersion = 71;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		307AE95C5DD4CB8A8F44FE14 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0E8A3AD980EC179856012B7E;
+			remoteInfo = Grab;
+		};
+		40F4FD73BE3F691A911EE326 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0E8A3AD980EC179856012B7E;
+			remoteInfo = Grab;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		38A007151ABE87CC01A5B6E9 /* Grab.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Grab.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3A8B51D367A7B0A299ED9B8F /* GrabTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GrabTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8126065A461B6729B3EAAA75 /* GrabUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GrabUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		497703467997F073ED4E522E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0E8A3AD980EC179856012B7E /* Grab */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		49F638ABDED76D11AE055608 /* Tests/GrabTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Tests/GrabTests; sourceTree = "<group>"; };
+		5376CEEB2D2064146E53C421 /* Tests/GrabUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Tests/GrabUITests; sourceTree = "<group>"; };
+		7971B6CAD54B5D1040BF6DE7 /* Resources */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (497703467997F073ED4E522E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Resources; sourceTree = "<group>"; };
+		E5E75AACF4AC35629BF0626E /* Sources/Grab */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sources/Grab; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5170868DBEF87C5E144AD52F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		69BE8A4D8E4D9DA4E7DB3928 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		86D6A0FDFEB8948D291D276F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B28B7AF69320201D1CF206EB = {
+			isa = PBXGroup;
+			children = (
+				E5E75AACF4AC35629BF0626E /* Sources/Grab */,
+				7971B6CAD54B5D1040BF6DE7 /* Resources */,
+				49F638ABDED76D11AE055608 /* Tests/GrabTests */,
+				5376CEEB2D2064146E53C421 /* Tests/GrabUITests */,
+				FBDC4F23F93125BBEEAE800C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FBDC4F23F93125BBEEAE800C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				38A007151ABE87CC01A5B6E9 /* Grab.app */,
+				3A8B51D367A7B0A299ED9B8F /* GrabTests.xctest */,
+				8126065A461B6729B3EAAA75 /* GrabUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0E8A3AD980EC179856012B7E /* Grab */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F497FD0CF9CA1625C4A860DE /* Build configuration list for PBXNativeTarget "Grab" */;
+			buildPhases = (
+				4E57AE888889001C06A4F7E8 /* Sources */,
+				69BE8A4D8E4D9DA4E7DB3928 /* Frameworks */,
+				D6C9E8A172005E68A1DD674F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7971B6CAD54B5D1040BF6DE7 /* Resources */,
+				E5E75AACF4AC35629BF0626E /* Sources/Grab */,
+			);
+			name = Grab;
+			productName = Grab;
+			productReference = 38A007151ABE87CC01A5B6E9 /* Grab.app */;
+			productType = "com.apple.product-type.application";
+		};
+		1648C6EBF8527D1BDA058518 /* GrabTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1D3E58740B3FEB3931B9488 /* Build configuration list for PBXNativeTarget "GrabTests" */;
+			buildPhases = (
+				8C681E7311589CE59F1FF8AB /* Sources */,
+				86D6A0FDFEB8948D291D276F /* Frameworks */,
+				B988AFEBFE260B325B6778BD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				708D11F017F98F63605F4818 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				49F638ABDED76D11AE055608 /* Tests/GrabTests */,
+			);
+			name = GrabTests;
+			productName = GrabTests;
+			productReference = 3A8B51D367A7B0A299ED9B8F /* GrabTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		C3C53CC72FAEECBBCA15FD23 /* GrabUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 503DC9A05FAFAE5FAB49B638 /* Build configuration list for PBXNativeTarget "GrabUITests" */;
+			buildPhases = (
+				DFDF96ACF17870B7181488CC /* Sources */,
+				5170868DBEF87C5E144AD52F /* Frameworks */,
+				A3554949F40810AD7F16BC9B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1E5AB5CAD77DD677CAC51A84 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5376CEEB2D2064146E53C421 /* Tests/GrabUITests */,
+			);
+			name = GrabUITests;
+			productName = GrabUITests;
+			productReference = 8126065A461B6729B3EAAA75 /* GrabUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98F54143AB4E86B28C3AFEE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					1648C6EBF8527D1BDA058518 = {
+						TestTargetID = 0E8A3AD980EC179856012B7E;
+					};
+					C3C53CC72FAEECBBCA15FD23 = {
+						TestTargetID = 0E8A3AD980EC179856012B7E;
+					};
+				};
+			};
+			buildConfigurationList = 49EA05A46B1A86EA7E413B43 /* Build configuration list for PBXProject "Grab" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				de,
+				es,
+				fr,
+				it,
+				ja,
+				ko,
+				nl,
+				"pt-BR",
+				"zh-Hans",
+			);
+			mainGroup = B28B7AF69320201D1CF206EB;
+			productRefGroup = FBDC4F23F93125BBEEAE800C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0E8A3AD980EC179856012B7E /* Grab */,
+				1648C6EBF8527D1BDA058518 /* GrabTests */,
+				C3C53CC72FAEECBBCA15FD23 /* GrabUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A3554949F40810AD7F16BC9B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B988AFEBFE260B325B6778BD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D6C9E8A172005E68A1DD674F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4E57AE888889001C06A4F7E8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8C681E7311589CE59F1FF8AB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DFDF96ACF17870B7181488CC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1E5AB5CAD77DD677CAC51A84 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0E8A3AD980EC179856012B7E /* Grab */;
+			targetProxy = 307AE95C5DD4CB8A8F44FE14 /* PBXContainerItemProxy */;
+		};
+		708D11F017F98F63605F4818 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0E8A3AD980EC179856012B7E /* Grab */;
+			targetProxy = 40F4FD73BE3F691A911EE326 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2893DC4718B00FFD0554E1A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Grab.app/Contents/MacOS/Grab";
+			};
+			name = Release;
+		};
+		639A7CA24D39909E713B47F7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		69BF6C89DA96B7920FBE2B6A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_TARGET_NAME = Grab;
+			};
+			name = Debug;
+		};
+		7082CC0B6FC1282FCEABD07A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		89E1FD6268CC0F221A2BE178 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		97C3D5E612C80CECA2EC9D09 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_TARGET_NAME = Grab;
+			};
+			name = Release;
+		};
+		9BF1FA567B33419686C1D864 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nickringelmann.grab.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Grab.app/Contents/MacOS/Grab";
+			};
+			name = Debug;
+		};
+		E6DE6C99132752C914FEF632 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_TESTABILITY = NO;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		49EA05A46B1A86EA7E413B43 /* Build configuration list for PBXProject "Grab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				89E1FD6268CC0F221A2BE178 /* Debug */,
+				E6DE6C99132752C914FEF632 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		503DC9A05FAFAE5FAB49B638 /* Build configuration list for PBXNativeTarget "GrabUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				69BF6C89DA96B7920FBE2B6A /* Debug */,
+				97C3D5E612C80CECA2EC9D09 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1D3E58740B3FEB3931B9488 /* Build configuration list for PBXNativeTarget "GrabTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9BF1FA567B33419686C1D864 /* Debug */,
+				2893DC4718B00FFD0554E1A4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F497FD0CF9CA1625C4A860DE /* Build configuration list for PBXNativeTarget "Grab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7082CC0B6FC1282FCEABD07A /* Debug */,
+				639A7CA24D39909E713B47F7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 98F54143AB4E86B28C3AFEE0 /* Project object */;
 }

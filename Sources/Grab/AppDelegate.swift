@@ -7,7 +7,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.start()
+        #if DEBUG
+        sizeWindowForUITests()
+        #endif
     }
+
+    #if DEBUG
+    /// UI tests launch with `-GrabUITestWindowWidth <points>` to check the toolbar at a given window width
+    /// (neither a saved frame nor `-NSWindow Frame` can be overridden from the command line).
+    private func sizeWindowForUITests() {
+        let width = UserDefaults.standard.integer(forKey: "GrabUITestWindowWidth")
+        guard width > 0 else { return }
+        Task {
+            for _ in 0..<50 {
+                if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+                    var frame = window.frame
+                    frame.size.width = CGFloat(width)
+                    window.setFrame(frame, display: true)
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+    #endif
 
     /// Quitting stops running downloads, so ask first (as Safari does).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
