@@ -16,7 +16,7 @@ struct GrabApp: App {
                 .environment(toolsUpdater)
         }
         .windowToolbarStyle(.unified)
-        .defaultSize(width: 680, height: 520)
+        .defaultSize(width: 820, height: 560)
         .commands {
             CommandGroup(replacing: .newItem) {
                 FileCommands(manager: manager)
