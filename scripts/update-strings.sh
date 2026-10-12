@@ -4,9 +4,12 @@
 # keeping existing translations and marking strings that are no longer used as stale.
 set -euo pipefail
 cd "${0:A:h}/.."
-OUT=$(mktemp -d)
-swift build --build-system native -Xswiftc -emit-localized-strings -Xswiftc -emit-localized-strings-path -Xswiftc "$OUT" >/dev/null
+DERIVED_DATA="$PWD/build/DerivedData"
+xcodebuild -project Grab.xcodeproj -scheme Grab -configuration Debug \
+  -destination 'generic/platform=macOS' -derivedDataPath "$DERIVED_DATA" \
+  SWIFT_EMIT_LOC_STRINGS=YES build >/dev/null
+STRINGS_DATA=("$DERIVED_DATA"/Build/Intermediates.noindex/Grab.build/Debug/Grab.build/Objects-normal/arm64/*.stringsdata(N))
+(( ${#STRINGS_DATA} )) || { echo "No extracted localization strings found" >&2; exit 1; }
 [[ -f Resources/Localizable.xcstrings ]] || echo '{"sourceLanguage":"en","strings":{},"version":"1.0"}' > Resources/Localizable.xcstrings
-xcrun xcstringstool sync Resources/Localizable.xcstrings --stringsdata "$OUT"/*.stringsdata
-rm -rf "$OUT"
+xcrun xcstringstool sync Resources/Localizable.xcstrings --stringsdata "${STRINGS_DATA[@]}"
 echo "Updated Resources/Localizable.xcstrings"
