@@ -12,7 +12,7 @@ jobs:
     name: Build and analyze Grab
     runs-on: xcode-27
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Build and analyze
