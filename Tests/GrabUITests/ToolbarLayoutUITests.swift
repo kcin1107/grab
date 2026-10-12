@@ -37,6 +37,16 @@ final class ToolbarLayoutUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(field.frame.width, max(minimumWidth, windowWidth * minimumFraction),
                                     "Link field is \(field.frame.width) pt wide in a \(windowWidth) pt window")
         XCTAssertTrue(app.buttons["submitButton"].exists, "Submit button missing at \(width) pt")
+        saveScreenshot(of: window, name: "toolbar-\(width)")
+    }
+
+    /// Keeps what the active window looks like in the test results, for checking the design by eye
+    /// (export with `xcrun xcresulttool export attachments`).
+    private func saveScreenshot(of window: XCUIElement, name: String) {
+        let attachment = XCTAttachment(screenshot: window.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     func testNarrowWindow() { check(width: 640, minimumFraction: 0, minimumWidth: 200) }

@@ -16,6 +16,8 @@ struct ContentView: View {
     /// The toolbar doesn't stretch items, so the input row (field, format menu, Download) is one
     /// item sized to the window, the way Safari's address field fills the toolbar.
     @State private var windowWidth: CGFloat = 0
+    /// Download's height, so the field and menu capsules match it.
+    @State private var controlHeight: CGFloat = 32
     @State private var previewURL: URL?
     @State private var isTargeted = false
     @FocusState private var fieldFocused: Bool
@@ -183,7 +185,7 @@ struct ContentView: View {
         TextField("Paste a link or search YouTube", text: $urlText)
             .textFieldStyle(.plain)
             .padding(.horizontal, 12)
-            .frame(height: 34)
+            .frame(height: controlHeight)
             .glassEffect(.regular.interactive(), in: .capsule)
             .accessibilityIdentifier("linkField")
             .focused($fieldFocused)
@@ -331,23 +333,26 @@ struct ContentView: View {
         .buttonStyle(.glassProminent)
         .disabled(!(isValid || isSearch))
         .help(isSearch ? String(localized: "Search YouTube") : String(localized: "Download"))
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if $0 > 0 { controlHeight = $0 } }
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        // One item, rebuilt whenever the window's width changes (in 8 pt steps): the toolbar
-        // measures an item once, when it's created, so a resized window otherwise kept the old
-        // size and pushed the row into the overflow menu.
+        // One item rather than three, rebuilt whenever the window's width changes (in 8 pt
+        // steps): the toolbar measures an item once, when it's created, so separate or resized
+        // items kept stale sizes and spilled into the overflow menu.
         ToolbarItem(id: "input-\(Int(inputRowWidth / 8))", placement: .navigation) {
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
                     linkField
-                    // A toolbar flattens menus' button styles, so the menu gets its capsule here.
+                    // Plain style inside its own capsule: the toolbar's menu styles drop the
+                    // capsule or draw the label white while the window is active.
                     FormatMenu()
-                        .menuStyle(.borderlessButton)
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
                         .fixedSize()
                         .padding(.horizontal, 12)
-                        .frame(height: 34)
+                        .frame(height: controlHeight)
                         .glassEffect(.regular.interactive(), in: .capsule)
                     submitButton
                         .fixedSize()
