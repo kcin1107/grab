@@ -14,6 +14,7 @@ final class AppModel {
     /// Starts the automatic update checks and lets queued downloads start once first-run setup of
     /// yt-dlp, ffmpeg and Deno has finished.
     func start() {
+        guard toolsWatcher == nil else { return }
         let busy = Observations { [updater, toolsUpdater] in updater.isBusy || toolsUpdater.isBusy }
         toolsWatcher = Task { [manager] in
             for await busy in busy {

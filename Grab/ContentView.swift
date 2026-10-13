@@ -11,8 +11,6 @@ struct ContentView: View {
     @State private var urlText = ""
     @State private var selection: Set<DownloadItem.ID> = []
     @State private var shownPickID: PlaylistPick.ID?
-    /// Narrow windows show the Download button as an icon, so the link field keeps its room.
-    @State private var isNarrow = false
     @State private var previewURL: URL?
     @State private var isTargeted = false
     @FocusState private var fieldFocused: Bool
@@ -34,8 +32,7 @@ struct ContentView: View {
                 downloadList
             }
         }
-        .frame(minWidth: 640, minHeight: 400)
-        .onGeometryChange(for: Bool.self) { $0.size.width < 720 } action: { isNarrow = $0 }
+        .frame(minWidth: 720, minHeight: 400)
         // First launch (or a tool gone): what's being set up, as it goes, or what went wrong.
         .safeAreaInset(edge: .top, spacing: 0) {
             if !manager.ffmpegAvailable || !manager.ytdlpAvailable {
@@ -46,10 +43,18 @@ struct ContentView: View {
                 }
             }
         }
-        // The link field, format menu and Download in a bar under the toolbar: there the field
-        // can fill the width, which toolbar items can't do in SwiftUI.
-        .safeAreaBar(edge: .top) { inputBar }
-        .navigationTitle("Grab")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                FormatMenu()
+                    .disabled(false)
+            }
+            ToolbarItem(placement: .primaryAction) {
+                submitButton
+            }
+        }
+        .searchable(text: $urlText, placement: .toolbarPrincipal, prompt: "Paste a link or search YouTube")
+        .searchFocused($fieldFocused)
+        .onSubmit(of: .search, submit)
         .overlay { if isTargeted { dropHighlight } }
         .dropDestination(for: DroppedItem.self) { items, _ in handle(items) }
         .onDropSessionUpdated { session in
@@ -60,7 +65,7 @@ struct ContentView: View {
         }
         // ⌘V with the list focused (the link field handles its own paste).
         .onPasteCommand(of: [.url, .plainText]) { _ in pasteFromClipboard() }
-        .onAppear { fieldFocused = true }
+        .onExitCommand { if fieldFocused { urlText = "" } }
         // Dialogs asked for by menu commands and models; with a sheet open, the dialog waits for it to close
         // (the search sheet hosts its own, above).
         .fileRequestImporter(manager, isActive: manager.picks.isEmpty && manager.search == nil && manager.filesToConvert.isEmpty)
@@ -173,26 +178,6 @@ struct ContentView: View {
 
     // MARK: - Input
 
-    private var linkField: some View {
-        TextField("Paste a link or search YouTube", text: $urlText)
-            .textFieldStyle(.roundedBorder)
-            .accessibilityIdentifier("linkField")
-            .focused($fieldFocused)
-            .onSubmit(submit)
-            .onExitCommand { urlText = "" }
-    }
-
-    private var inputBar: some View {
-        HStack(spacing: 8) {
-            linkField
-            FormatMenu()
-            submitButton
-        }
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-    }
-
     /// "Download", "Download 3" for several links, or "Search" for words rather than a link.
     private var submitTitle: String {
         if isSearch { return String(localized: "Search") }
@@ -214,11 +199,43 @@ struct ContentView: View {
         withAnimation(reduceMotion ? nil : .snappy) { urlText = "" }
     }
 
-    /// ⌘V outside the link field: links on the clipboard start downloading.
+    /// ⌘V outside the link field fills it for review; the field keeps its native paste behavior.
     private func pasteFromClipboard() {
         guard !fieldFocused else { return }
-        let links = Links.extract(urls: MacPlatform.pasteboardURLs(), text: MacPlatform.pasteboardString())
-        if links.isEmpty { MacPlatform.beep() } else { manager.add(links) }
+        let urls = MacPlatform.pasteboardURLs()
+        if !urls.isEmpty {
+            paste(urls.map { .url($0) })
+        } else if let text = MacPlatform.pasteboardString() {
+            paste([.text(text)])
+        } else {
+            MacPlatform.beep()
+        }
+    }
+
+    /// Paste fills the input; copied media files still open the converter.
+    private func paste(_ items: [DroppedItem]) {
+        var input: [String] = []
+        var media: [URL] = []
+        for item in items {
+            switch item {
+            case .url(let url) where url.isFileURL:
+                if Converting.isMedia(url) {
+                    media.append(url)
+                } else if Converting.isText(url) {
+                    input += Links.extract(fromFile: url)
+                }
+            case .url(let url):
+                input.append(url.absoluteString)
+            case .text(let text):
+                input.append(text)
+            }
+        }
+        if !input.isEmpty {
+            urlText = input.joined(separator: "\n")
+            fieldFocused = true
+        }
+        if !media.isEmpty { manager.openConverter(for: media) }
+        if input.isEmpty, media.isEmpty { MacPlatform.beep() }
     }
 
     // MARK: - List
@@ -273,7 +290,8 @@ struct ContentView: View {
             Text("Paste a link above, or drop links or media files here.")
         } actions: {
             // Reading the clipboard is the user's own action, so there's no privacy prompt.
-            PasteButton(payloadType: DroppedItem.self) { items in handle(items) }
+            PasteButton(payloadType: DroppedItem.self) { items in paste(items) }
+                .accessibilityIdentifier("pasteButton")
         }
         .frame(maxHeight: .infinity)
     }
@@ -313,14 +331,11 @@ struct ContentView: View {
 
     private var submitButton: some View {
         Button(action: submit) {
-            if isNarrow {
-                Label(submitTitle, systemImage: isSearch ? "magnifyingglass" : "arrow.down")
-                    .labelStyle(.iconOnly)
-            } else {
-                Text(submitTitle)
-            }
+            Label(submitTitle, systemImage: isSearch ? "magnifyingglass" : "arrow.down")
+                .labelStyle(.iconOnly)
         }
         .accessibilityIdentifier("submitButton")
+        .accessibilityLabel(submitTitle)
         .buttonStyle(.borderedProminent)
         .disabled(!(isValid || isSearch))
         .help(isSearch ? String(localized: "Search YouTube") : String(localized: "Download"))

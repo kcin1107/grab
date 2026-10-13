@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Refreshes Resources/Localizable.xcstrings from the code: the compiler extracts every localizable
+# Refreshes Grab/Resources/Localizable.xcstrings from the code: the compiler extracts every localizable
 # string (SwiftUI text and String(localized:)), and xcstringstool merges them into the catalog,
 # keeping existing translations and marking strings that are no longer used as stale.
 set -euo pipefail
@@ -10,6 +10,6 @@ xcodebuild -project Grab.xcodeproj -scheme Grab -configuration Debug \
   SWIFT_EMIT_LOC_STRINGS=YES build >/dev/null
 STRINGS_DATA=("$DERIVED_DATA"/Build/Intermediates.noindex/Grab.build/Debug/Grab.build/Objects-normal/arm64/*.stringsdata(N))
 (( ${#STRINGS_DATA} )) || { echo "No extracted localization strings found" >&2; exit 1; }
-[[ -f Resources/Localizable.xcstrings ]] || echo '{"sourceLanguage":"en","strings":{},"version":"1.0"}' > Resources/Localizable.xcstrings
-xcrun xcstringstool sync Resources/Localizable.xcstrings --stringsdata "${STRINGS_DATA[@]}"
-echo "Updated Resources/Localizable.xcstrings"
+[[ -f Grab/Resources/Localizable.xcstrings ]] || echo '{"sourceLanguage":"en","strings":{},"version":"1.0"}' > Grab/Resources/Localizable.xcstrings
+xcrun xcstringstool sync Grab/Resources/Localizable.xcstrings --stringsdata "${STRINGS_DATA[@]}"
+echo "Updated Grab/Resources/Localizable.xcstrings"

@@ -3,10 +3,11 @@ import SwiftUI
 @main
 struct GrabApp: App {
     @NSApplicationDelegateAdaptor private var app: AppDelegate
+    @State private var model = AppModel()
 
-    private var manager: DownloadManager { app.model.manager }
-    private var updater: Updater { app.model.updater }
-    private var toolsUpdater: HelperToolsUpdater { app.model.toolsUpdater }
+    private var manager: DownloadManager { model.manager }
+    private var updater: Updater { model.updater }
+    private var toolsUpdater: HelperToolsUpdater { model.toolsUpdater }
 
     var body: some Scene {
         Window("Grab", id: "main") {
@@ -14,8 +15,12 @@ struct GrabApp: App {
                 .environment(manager)
                 .environment(updater)
                 .environment(toolsUpdater)
+                .onAppear {
+                    app.manager = manager
+                    model.start()
+                }
         }
-        .windowToolbarStyle(.unified)
+        .windowToolbarStyle(.unified(showsTitle: false))
         .defaultSize(width: 820, height: 560)
         .commands {
             CommandGroup(replacing: .newItem) {

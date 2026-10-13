@@ -8,6 +8,16 @@ enum SettingsTab: String {
 struct SettingsView: View {
     @AppStorage("settingsTab") private var tab: SettingsTab = .general
 
+    // Grouped forms scroll when their content needs more room, including longer translations.
+    private var paneHeight: CGFloat {
+        switch tab {
+        case .general: 170
+        case .format: 440
+        case .downloads: 430
+        case .advanced: 470
+        }
+    }
+
     var body: some View {
         TabView(selection: $tab) {
             Tab("General", systemImage: "gearshape", value: SettingsTab.general) { GeneralSettings() }
@@ -15,7 +25,7 @@ struct SettingsView: View {
             Tab("Downloads", systemImage: "arrow.down.circle", value: SettingsTab.downloads) { DownloadSettings() }
             Tab("Advanced", systemImage: "terminal", value: SettingsTab.advanced) { AdvancedSettings() }
         }
-        .frame(width: 540)
+        .frame(width: 540, height: paneHeight)
     }
 }
 

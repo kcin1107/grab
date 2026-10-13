@@ -4,25 +4,25 @@ Grab is a SwiftUI app for macOS 26 and later on Apple silicon. It runs yt-dlp, f
 
 ## Project
 
-- `Grab.xcodeproj`: one app target `Grab` (bundle ID `com.nickringelmann.grab`), a unit test target `GrabTests` and a UI test target `GrabUITests`, all in the shared scheme `Grab`. Folders are synchronized groups, so new files are picked up without editing the project.
+- `Grab.xcodeproj`: one app target `Grab` (bundle ID `com.nickringelmann.grab`), a unit test target `GrabTests` and a UI test target `GrabUITests`, all in the shared scheme `Grab`. The app uses one synchronized `Grab` group, including its resources, and each test target has its own synchronized group, so new files are picked up without editing the project.
 - Build settings: Swift 6 language mode, `MACOSX_DEPLOYMENT_TARGET = 26.0`, `ARCHS = arm64`, hardened runtime, no app sandbox (Grab has to run yt-dlp and ffmpeg), team `56JJ9GRL32`. Xcode builds are signed ad hoc; releases are signed with Developer ID by `build-app.sh --sign`.
-- Version: `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the target's build settings; `Resources/Info.plist` reads them.
+- Version: `MARKETING_VERSION = 1.0.1` and `CURRENT_PROJECT_VERSION = 2` in the target's build settings; `Grab/Resources/Info.plist` reads them.
 - No package dependencies.
 
 ## Folders
 
-- `Sources/Grab`: the app.
-- `Resources`: `Info.plist`, `AppIcon.icon` (Icon Composer, three glass layers) and `Localizable.xcstrings` (English plus de, es, fr, it, ja, ko, nl, pt-BR, zh-Hans).
-- `Tests/GrabTests`: Swift Testing unit tests for links, yt-dlp arguments and output parsing, path containment and file naming.
-- `Tests/GrabUITests`: XCUITest checks that the input bar fills the window at several widths.
+- `Grab`: the app.
+- `Grab/Resources`: `Info.plist`, `AppIcon.icon` (Icon Composer, three glass layers) and `Localizable.xcstrings` (English plus de, es, fr, it, ja, ko, nl, pt-BR, zh-Hans).
+- `GrabTests`: Swift Testing unit tests for links, yt-dlp arguments and output parsing, path containment, file naming and search-session resets.
+- `GrabUITests`: XCUITest checks toolbar layout at several widths and paste-to-input behavior.
 - `scripts`: `build-app.sh` (Release build into `build/Grab.app`; `--sign "<identity>"` signs it with a Developer ID, `--install` copies it to `/Applications`), `notarize.sh` (notarizes and staples `build/Grab.app`, then zips it as `build/Grab.zip`) and `update-strings.sh` (syncs the string catalog with the code).
 - `docs/icon.png`: the rendered icon for the README. After changing the icon, refresh it from a build: `sips -s format png -z 512 512 build/Grab.app/Contents/Resources/AppIcon.icns --out docs/icon.png`.
 
 ## Sources
 
-- App and state: `GrabApp.swift` (scenes and menus), `AppDelegate.swift` (asks before quitting while downloads run), `AppModel.swift` (owns the queue and the updaters), `Prefs.swift` (settings keys).
-- Main window: `ContentView.swift` (input bar under the toolbar, download list, drops and paste), `DownloadRow.swift`, `DownloadSelection.swift` (selection actions, Downloads menu, context menu), `FormatMenu.swift`, `Clip.swift` (time ranges).
-- Sheets and Settings: `PlaylistPickerView.swift`, `SearchResultsView.swift`, `ConvertSheet.swift`, `SettingsView.swift`, `FileRequests.swift` (one SwiftUI file dialog driven by the model).
+- App and state: `GrabApp.swift` (SwiftUI scenes, menus and ownership of `AppModel` through `@State`), `AppDelegate.swift` (a weak queue reference for the macOS quit prompt and termination cleanup, plus debug-only UI test window sizing), `AppModel.swift` (owns the queue and the updaters; starts them once when the main view appears), `Prefs.swift` (settings keys).
+- Main window: `ContentView.swift` (native toolbar with link/search input, output format and icon-only submit action; 720-point minimum width keeps all controls visible; download list, drops and paste-to-input), `DownloadRow.swift`, `DownloadSelection.swift` (selection actions, Downloads menu, context menu), `FormatMenu.swift` (Video/Audio choices, advanced options and direct access to Format Settings), `Clip.swift` (time ranges).
+- Sheets and Settings: `PlaylistPickerView.swift`, `SearchResultsView.swift` (editable query and retry), `ConvertSheet.swift`, `SettingsView.swift` (native tabs with pane-specific sizing), `FileRequests.swift` (one SwiftUI file dialog driven by the model).
 - Downloads: `DownloadManager.swift` (the queue), `YtDlp.swift` (arguments and output parsing), `PostProcessing.swift` (cover art, chapters), `Organizing.swift` (file and folder names), `History.swift`, `Models.swift`.
 - Sources of links: `Links.swift`, `Search.swift` (YouTube and YouTube Music), `Playlist.swift`, `Spotify.swift`, `AppleMusic.swift`.
 - Conversion: `Converting.swift` (local files through ffmpeg).

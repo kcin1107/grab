@@ -30,62 +30,74 @@ struct FormatSettings: DynamicProperty {
 
 struct FormatMenu: View {
     private var format = FormatSettings()
+    @AppStorage("settingsTab") private var settingsTab: SettingsTab = .general
     @Environment(\.openSettings) private var openSettings
+
+    private var title: String {
+        if format.kind == .video {
+            return String(localized: "Video · \(format.resolution.shortLabel)")
+        }
+        let audio = format.audioFormat == .original ? String(localized: "Original") : format.audioFormat.shortLabel
+        return String(localized: "Audio · \(audio)")
+    }
 
     var body: some View {
         Menu {
-            Picker("Video", selection: format.videoSelection) {
-                ForEach(Resolution.allCases) { Text($0.label).tag(Optional($0)) }
+            Menu {
+                Picker("Video", selection: format.videoSelection) {
+                    ForEach(Resolution.allCases) { Text($0.label).tag(Optional($0)) }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Label("Video", systemImage: "film")
             }
-            .pickerStyle(.inline)
 
-            Picker("Audio Only", selection: format.audioSelection) {
-                ForEach(AudioFormat.allCases) { Text($0.label).tag(Optional($0)) }
+            Menu {
+                Picker("Audio", selection: format.audioSelection) {
+                    ForEach(AudioFormat.allCases) { Text($0.label).tag(Optional($0)) }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Label("Audio", systemImage: "waveform")
             }
-            .pickerStyle(.inline)
 
             Divider()
 
-            Menu {
+            Menu("Advanced Options") {
                 Picker("Codec", selection: format.$codec) {
                     ForEach(VideoCodec.allCases) { Text($0.label).tag($0) }
                 }
-                .pickerStyle(.inline)
+                .pickerStyle(.menu)
                 .disabled(format.container == .webm)
                 Picker("Container", selection: format.$container) {
                     ForEach(VideoContainer.allCases) { Text($0.label).tag($0) }
                 }
-                .pickerStyle(.inline)
-                Divider()
-                Toggle("Prefer 60 fps", isOn: format.$prefer60fps)
-            } label: {
-                Label("Video Options", systemImage: "film")
-            }
-
-            Menu {
+                .pickerStyle(.menu)
                 Picker("Bitrate", selection: format.$audioBitrate) {
                     ForEach(AudioBitrate.allCases) { Text($0.label).tag($0) }
                 }
-                .pickerStyle(.inline)
-            } label: {
-                Label("Audio Quality", systemImage: "waveform")
+                .pickerStyle(.menu)
+                .disabled(!format.audioFormat.supportsBitrate)
+                Divider()
+                Toggle("Prefer 60 fps", isOn: format.$prefer60fps)
+                Toggle(isOn: format.$splitChapters) {
+                    Label("Split into Chapters", systemImage: "list.number")
+                }
+                .help("Videos with chapters, like DJ mixes and full albums, are saved as one file per chapter")
             }
-            .disabled(!format.audioFormat.supportsBitrate)
 
             Divider()
-            Toggle(isOn: format.$splitChapters) {
-                Label("Split into Chapters", systemImage: "list.number")
+            Button("Format Settings…") {
+                settingsTab = .format
+                openSettings()
             }
-            .help("Videos with chapters, like DJ mixes and full albums, are saved as one file per chapter")
-
-            Divider()
-            Button("More Settings…") { openSettings() }
         } label: {
-            Label(format.options.label, systemImage: format.options.symbol)
+            Label(title, systemImage: format.kind == .video ? "film" : "waveform")
                 .labelStyle(.titleAndIcon)
                 .foregroundStyle(.primary)
                 .contentTransition(.numericText())
         }
+        .accessibilityIdentifier("formatMenu")
         .menuIndicator(.visible)
         .fixedSize()
         .help("Output format: \(format.options.longLabel)")

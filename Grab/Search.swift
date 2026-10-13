@@ -30,16 +30,31 @@ final class SearchSession: Identifiable {
     enum Phase: Equatable { case loading, ready, failed }
 
     let id = UUID()
-    let query: String
-    let kind: Kind
+    private(set) var query: String
+    private(set) var kind: Kind
+    private(set) var requestID = UUID()
     var phase: Phase = .loading
     var results: [SearchResult] = []
     /// Results added to the download list from this search.
     var added: Set<SearchResult.ID> = []
 
     init(query: String, kind: Kind) {
+        self.query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.kind = kind
+    }
+
+    /// Starts another request without replacing the sheet's presented item.
+    @discardableResult
+    func restart(query: String, kind: Kind) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return false }
         self.query = query
         self.kind = kind
+        requestID = UUID()
+        phase = .loading
+        results = []
+        added = []
+        return true
     }
 }
 
@@ -115,13 +130,22 @@ extension DownloadManager {
 
     /// Searches YouTube or YouTube Music for text typed into a link field.
     func startSearch(_ query: String, kind: SearchSession.Kind? = nil) {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
         // Opens on the tab used last, so music searches go straight to Music.
         let remembered = SearchSession.Kind(rawValue: defaults.string(forKey: Prefs.searchKind) ?? "") ?? .videos
         let chosen = kind ?? remembered
         defaults.set(chosen.rawValue, forKey: Prefs.searchKind)
-        let session = SearchSession(query: query, kind: chosen)
-        search = session
-        Task { await run(session) }
+        let session: SearchSession
+        if let current = search {
+            current.restart(query: query, kind: chosen)
+            session = current
+        } else {
+            session = SearchSession(query: query, kind: chosen)
+            search = session
+        }
+        let requestID = session.requestID
+        Task { await run(session, requestID: requestID) }
     }
 
     /// Switches between Videos and Music for the current query.
@@ -130,18 +154,20 @@ extension DownloadManager {
         startSearch(current.query, kind: kind)
     }
 
-    func run(_ session: SearchSession) async {
-        guard let data = await capture(Searching.arguments(query: session.query, kind: session.kind)) else {
-            if search?.id == session.id { session.phase = .failed }
+    private func run(_ session: SearchSession, requestID: UUID) async {
+        guard search?.id == session.id, session.requestID == requestID else { return }
+        let kind = session.kind
+        guard let data = await capture(Searching.arguments(query: session.query, kind: kind)) else {
+            if search?.id == session.id, session.requestID == requestID { session.phase = .failed }
             return
         }
-        guard search?.id == session.id else { return }
+        guard search?.id == session.id, session.requestID == requestID else { return }
         session.results = Searching.parse(data)
         session.phase = .ready
         // Music results show straight away; artist names fill in as they arrive.
-        if session.kind == .music {
+        if kind == .music {
             let withArtists = await Searching.addArtists(to: session.results)
-            if search?.id == session.id { session.results = withArtists }
+            if search?.id == session.id, session.requestID == requestID { session.results = withArtists }
         }
     }
 

@@ -1,12 +1,11 @@
 import AppKit
 
-/// What SwiftUI has no hook for: quitting. Holds the app's state so it can stop downloads on the way out.
+/// Bridges macOS termination callbacks to the queue owned by the SwiftUI app.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model = AppModel()
+    weak var manager: DownloadManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        model.start()
         #if DEBUG
         sizeWindowForUITests()
         #endif
@@ -35,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Quitting stops running downloads, so ask first (as Safari does).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard model.manager.activeCount > 0 else { return .terminateNow }
+        guard let manager, manager.activeCount > 0 else { return .terminateNow }
         let alert = NSAlert()
         alert.messageText = String(localized: "Quit Grab?")
         alert.informativeText = String(localized: "Downloads are in progress. Quitting stops them; they’ll be paused and can be resumed next time.")
@@ -45,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        model.manager.shutDown()
+        manager?.shutDown()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

@@ -5,6 +5,8 @@ struct SearchResultsView: View {
     @Environment(DownloadManager.self) private var manager
     @Bindable var session: SearchSession
     @State private var selection: Set<SearchResult.ID> = []
+    @State private var query = ""
+    @FocusState private var queryFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,20 +21,30 @@ struct SearchResultsView: View {
         }
         .frame(minWidth: 540, idealWidth: 640, minHeight: 420, idealHeight: 520)
         .presentationSizing(.fitted)
+        .onChange(of: session.requestID, initial: true) {
+            query = session.query
+            selection = []
+        }
+        .onChange(of: query) { selection = [] }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Results for “\(session.query)”")
-                .font(.headline)
-                .lineLimit(1)
-                .truncationMode(.tail)
+            HStack {
+                TextField("Search YouTube", text: $query)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($queryFocused)
+                    .onSubmit(submitSearch)
+                Button("Search", action: submitSearch)
+                    .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
             Picker("Search in", selection: Binding(get: { session.kind },
-                                                   set: { manager.changeSearchKind($0) })) {
+                                                   set: { manager.startSearch(query, kind: $0) })) {
                 ForEach(SearchSession.Kind.allCases) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
@@ -44,9 +56,14 @@ struct SearchResultsView: View {
                 .controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
-            ContentUnavailableView("Search Failed", systemImage: "wifi.exclamationmark",
-                                   description: Text("Check your internet connection and try again."))
-                .frame(maxHeight: .infinity)
+            ContentUnavailableView {
+                Label("Search Failed", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text("Check your internet connection and try again.")
+            } actions: {
+                Button("Retry") { manager.startSearch(session.query, kind: session.kind) }
+            }
+            .frame(maxHeight: .infinity)
         case .ready where session.results.isEmpty:
             ContentUnavailableView.search(text: session.query)
                 .frame(maxHeight: .infinity)
@@ -64,6 +81,11 @@ struct SearchResultsView: View {
                 download(downloadable(ids))
             }
         }
+    }
+
+    private func submitSearch() {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        manager.startSearch(query, kind: session.kind)
     }
 
     private var isAudio: Bool { session.kind == .music || DownloadOptions.current.isAudio }
@@ -100,7 +122,7 @@ struct SearchResultsView: View {
             Button("Done", role: .cancel) { manager.search = nil }
                 .keyboardShortcut(.cancelAction)
             Button("Download") { download(downloadable(selection)) }
-                .keyboardShortcut(.defaultAction)
+                .keyboardShortcut(queryFocused ? nil : .defaultAction)
                 .disabled(downloadable(selection).isEmpty)
         }
     }
